@@ -1,0 +1,18 @@
+# IDE
+.idea/
+
+# Go
+*.exe
+*.exe~
+*.test
+*.out
+go.work
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+data/
+
+cmd/gateway/etc/doc.yaml

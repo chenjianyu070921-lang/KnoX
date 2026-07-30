@@ -1,0 +1,64 @@
+syntax = "v1"
+
+type UploadDocRequest {
+	//文件内容，base64 编码传过来先简化流程
+	Content  string `json:"content"`
+	FileName string `json:"fileName"`
+	DocType  string `json:"docType"`
+}
+
+type UploadDocRespose {
+	DocId   string `json:"docId"`
+	Url     string `json:"url"`
+	Version int    `json:"version"`
+}
+
+//=============================================================
+type PingResp {
+	Message string `json:"message"`
+}
+
+//============================================================
+type SearchReq {
+	Query string `json:"query"`
+	TopK  int    `json:"topK,optional"`
+}
+
+type SearchResult {
+	DocId   string  `json:"docId"`
+	Content string  `json:"content"`
+	Score   float64 `json:"score"`
+}
+
+type SearchResp {
+	Results []SearchResult `json:"results"`
+}
+
+//===========================================================
+type ChatReq {
+	Question  string `json:"question"`
+	SessionId string `json:"sessionId,optional"`
+}
+
+type ChatResp {
+	Answer    string `json:"answer"`
+	SessionId string `json:"sessionId,optional"`
+}
+
+@server (
+	prefix: /api/v1
+)
+service Doc {
+	@handler UploadDoc
+	post /doc/upload (UploadDocRequest) returns (UploadDocRespose)
+
+	@handler Ping
+	get /ping (PingResp)
+
+	@handler Search
+	post /search (SearchReq) returns (SearchResp)
+
+	@handler Chat
+	post /chat (ChatReq) returns (ChatResp)
+}
+
