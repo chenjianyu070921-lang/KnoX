@@ -10,29 +10,35 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/ark"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/redis/go-redis/v9"
+	gozeredis "github.com/zeromicro/go-zero/core/stores/redis"
 	arkModel "github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/yourname/know/cmd/gateway/internal/config"
 	"github.com/yourname/know/internal/agent"
+	"github.com/yourname/know/internal/analytics"
 	"github.com/yourname/know/internal/model"
 	"github.com/yourname/know/internal/repository"
 	"github.com/yourname/know/internal/session"
 	"github.com/yourname/know/internal/vector"
+	"github.com/yourname/know/pkg/clickhouse"
 	"github.com/yourname/know/pkg/database"
 	"github.com/yourname/know/pkg/redisx"
 	"github.com/yourname/know/pkg/redisx/distlock"
+	"github.com/zeromicro/go-zero/core/logx"
 	"gorm.io/gorm"
 )
 
 type ServiceContext struct {
 	Config        config.Config
 	DB            *gorm.DB
-	Redis         *redis.Client
+	Redis         *redis.Client      // go-redis，供 session / distlock / 业务锁
+	GoZeroRedis   *gozeredis.Redis   // go-zero 原生 Redis，供 PeriodLimit 限流
 	KafkaProducer sarama.SyncProducer
 	ReActAgent    *agent.ReActAgent
 	ChatModel     *ark.ChatModel
 	SessionStore  *session.Store
 	Lock          *distlock.DistLock
 	DocRepo       *repository.DocumentRepository
+	Analytics     *analytics.Analytics // ClickHouse 统计埋点（nil 时降级为空操作）
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -45,6 +51,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		panic("failed to connect redis: " + err.Error())
 	}
+	gzRedis := gozeredis.MustNewRedis(gozeredis.RedisConf{
+		Host: c.Redis.Addr,
+		Type: gozeredis.NodeType,
+	})
 	lock := distlock.NewDistLock(client)
 
 	//3.连接kafka生产者
@@ -74,15 +84,35 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	reactAgent := agent.NewReActAgent(tools)
 	//6.初始化历史消息
 	store := session.NewStore(client)
+	//7.初始化 ClickHouse 统计（非关键路径，失败不 panic）
+	var analyticsClient *analytics.Analytics
+	chCfg := clickhouse.Config{
+		Addr:     c.ClickHouse.Addr,
+		Database: c.ClickHouse.Database,
+		Username: c.ClickHouse.Username,
+		Password: c.ClickHouse.Password,
+	}
+	chDB := clickhouse.Init(chCfg)
+	if chDB != nil {
+		analyticsClient = analytics.New(chDB)
+		if err := analyticsClient.InitSchema(); err != nil {
+			logx.Errorf("clickhouse init schema failed: %v", err)
+		}
+	} else {
+		logx.Error("clickhouse init failed, analytics disabled")
+		analyticsClient = analytics.New(nil) // nil-safe
+	}
 	return &ServiceContext{
 		Config:        c,
 		DB:            db,
 		Redis:         client,
+		GoZeroRedis:   gzRedis,
 		KafkaProducer: producer,
 		ChatModel:     chatModel,
 		ReActAgent:    reactAgent,
 		SessionStore:  store,
 		Lock:          lock,
 		DocRepo:       repository.NewDocumentRepository(db),
+		Analytics:     analyticsClient,
 	}
 }

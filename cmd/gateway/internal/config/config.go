@@ -5,6 +5,12 @@ package config
 
 import "github.com/zeromicro/go-zero/rest"
 
+// RateLimitRule 单条限流规则，Period 秒内允许 Quota 次请求
+type RateLimitRule struct {
+	Quota  int `json:"quota"`
+	Period int `json:"period"`
+}
+
 type Config struct {
 	rest.RestConf
 	Mysql struct {
@@ -29,4 +35,15 @@ type Config struct {
 		ModelID string `json:"modelId"`
 		BaseURL string `json:"baseUrl"`
 	} `json:"ark"`
+	RateLimit struct {
+		Chat   RateLimitRule `json:"chat"`
+		Upload RateLimitRule `json:"upload"`
+		Search RateLimitRule `json:"search"`
+	} `json:"rateLimit"`
+	ClickHouse struct {
+		Addr     string `json:"addr"`     // 默认 127.0.0.1:9000
+		Database string `json:"database"` // 默认 knox
+		Username string `json:"username"` // 默认 default
+		Password string `json:"password"` // 默认空
+	} `json:"clickhouse"`
 }

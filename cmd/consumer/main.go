@@ -54,7 +54,7 @@ func main() {
 	// 6. 启动消费
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		consumerInsertDocInMilvus(ctx, db, redisClient, consumer)
+		consumerInsertDocInMilvus(ctx, db, redisClient, consumer, c)
 	}()
 
 	// 7. 优雅关闭

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown"
 	"github.com/cloudwego/eino/components/document"
@@ -12,6 +13,12 @@ import (
 )
 
 var splitter document.Transformer
+
+var (
+	chunkOnce     sync.Once
+	chunkSplitter document.Transformer
+	chunkErr      error
+)
 
 func NewMarkdownChunker(ctx context.Context) (document.Transformer, error) {
 	var err error
@@ -31,13 +38,13 @@ func NewMarkdownChunker(ctx context.Context) (document.Transformer, error) {
 }
 
 func Chunk(ctx context.Context, docID, content, docType string) ([]*schema.Document, error) {
-	var err error
-	if splitter == nil {
-		splitter, err = NewMarkdownChunker(ctx)
-		if err != nil {
-			return nil, err
-		}
+	chunkOnce.Do(func() {
+		chunkSplitter, chunkErr = NewMarkdownChunker(ctx)
+	})
+	if chunkErr != nil {
+		return nil, chunkErr
 	}
+	splitter := chunkSplitter
 	// 非 md 文件回退到简单分块
 	if docType != ".md" && docType != "md" {
 		return nil, errors.New("格式错误")

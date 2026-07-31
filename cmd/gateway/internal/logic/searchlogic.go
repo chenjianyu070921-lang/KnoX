@@ -5,9 +5,12 @@ package logic
 
 import (
 	"context"
+	"time"
 
+	"github.com/cloudwego/eino/schema"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
+	"github.com/yourname/know/internal/breaker"
 	"github.com/yourname/know/internal/vector"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -28,16 +31,34 @@ func NewSearchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchLogi
 }
 
 func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err error) {
+	start := time.Now()
+	var resultCount int
+	defer func() {
+		l.svcCtx.Analytics.LogSearch(
+			time.Since(start).Milliseconds(),
+			err == nil,
+			"",
+			req.Query,
+			resultCount,
+		)
+	}()
+
 	//获取LLM的各大组件
 	embedding := vector.GetEmbeddingClient(l.ctx)
 	milvus := vector.MilvusClient(l.ctx)
 	retriever := vector.RetrieverClient(l.ctx, embedding, milvus)
 	//Retriever 返回 []*schema.Document
-	docs, err := retriever.Retrieve(l.ctx, req.Query)
+	var docs []*schema.Document
+	err = breaker.Do(breaker.Milvus, func() error {
+		var innerErr error
+		docs, innerErr = retriever.Retrieve(l.ctx, req.Query)
+		return innerErr
+	})
 	if err != nil {
 		return nil, err
 	}
 	//把搜索结果映射成 API 响应
+	resultCount = len(docs)
 	results := make([]types.SearchResult, 0, len(docs))
 	for _, doc := range docs {
 		results = append(results, types.SearchResult{

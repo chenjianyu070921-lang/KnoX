@@ -34,7 +34,7 @@ func ChatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		l := logic.NewChatLogic(r.Context(), svcCtx)
-		_, err := l.Chat(&req,
+		resp, err := l.Chat(&req,
 			func(token string) {
 				data, _ := json.Marshal(map[string]string{"content": token})
 				fmt.Fprintf(w, "data: %s\n\n", data)
@@ -43,8 +43,9 @@ func ChatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if err != nil {
 			data, _ := json.Marshal(map[string]string{"error": err.Error()})
 			fmt.Fprintf(w, "data: %s\n\n", data)
-			flusher.Flush()
-			return
+		} else if resp != nil && resp.SessionId != "" {
+			data, _ := json.Marshal(map[string]string{"sessionId": resp.SessionId})
+			fmt.Fprintf(w, "data: %s\n\n", data)
 		}
 
 		fmt.Fprintf(w, "data: [DONE]\n\n")

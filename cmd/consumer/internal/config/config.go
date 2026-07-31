@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 type Config struct {
 	Mysql struct {
 		DSN string `json:"DSN"`
@@ -19,4 +21,9 @@ type Config struct {
 	Milvus struct {
 		Addr string `json:"Addr"`
 	} `json:"milvus"`
+	Consumer struct {
+		HandleTimeout  time.Duration `json:"HandleTimeout"`
+		LockTTL        time.Duration `json:"LockTTL"`
+		LockMaxRetries int           `json:"LockMaxRetries"`
+	} `json:"consumer"`
 }

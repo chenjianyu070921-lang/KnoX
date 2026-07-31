@@ -1,18 +1,60 @@
-# IDE
+# IDE / editors
 .idea/
-
-# Go
-*.exe
-*.exe~
-*.test
-*.out
-go.work
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# Docker
-data/
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+go.work
+go.work.sum
+bin/
+dist/
+coverage/
+coverage.out
 
+# Local Go caches
+.gocache/
+.gotmp/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.local
 cmd/gateway/etc/doc.yaml
+cmd/gateway/etc/*.local.yaml
+cmd/consumer/etc/config.local.yaml
+
+# TLS certificates / keys
+*.pem
+*.key
+*.crt
+
+# Logs
+*.log
+logs/
+
+# Docker runtime data
+data/
+docker-compose/data/
+mysql_data/
+clickhouse_data/
+
+# Temp files
+tmp/
+temp/

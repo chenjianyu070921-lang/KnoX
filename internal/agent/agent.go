@@ -126,10 +126,21 @@ func (a *ReActAgent) RunWithMessages(ctx context.Context, chatModel interface {
 			if err == io.EOF {
 				break
 			}
+			if err != nil {
+				return "", fmt.Errorf("recv failed: %w", err)
+			}
+			if msg == nil {
+				return "", fmt.Errorf("recv returned nil message")
+			}
 			tokens = append(tokens, msg.Content)
+			if msg.Content != "" && onToken != nil {
+				onToken(msg.Content)
+			}
 			toolCalls = append(toolCalls, msg.ToolCalls...)
 		}
-		stream.Close()
+		if err := stream.Close(); err != nil {
+			return "", fmt.Errorf("close stream failed: %w", err)
+		}
 
 		if len(toolCalls) > 0 {
 			assistantMsg := &schema.Message{Role: schema.Assistant, Content: ""}
@@ -157,11 +168,6 @@ func (a *ReActAgent) RunWithMessages(ctx context.Context, chatModel interface {
 		}
 
 		fullContent := strings.Join(tokens, "")
-		if onToken != nil {
-			for _, t := range tokens {
-				onToken(t)
-			}
-		}
 		return fullContent, nil
 	}
 

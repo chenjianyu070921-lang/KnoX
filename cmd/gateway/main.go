@@ -35,7 +35,16 @@ func main() {
 	// 注册自定义错误处理器：将 BizError 转成统一格式
 	httpx.SetErrorHandler(func(err error) (int, interface{}) {
 		if bizErr, ok := err.(*errcode.BizError); ok {
-			return http.StatusOK, map[string]interface{}{
+			status := http.StatusOK
+			switch bizErr.Code {
+			case errcode.BadRequest, errcode.InvalidParam:
+				status = http.StatusBadRequest
+			case errcode.RateLimitExceeded:
+				status = http.StatusTooManyRequests
+			case errcode.CircuitBreakerOpen:
+				status = http.StatusServiceUnavailable
+			}
+			return status, map[string]interface{}{
 				"code":    bizErr.Code,
 				"message": bizErr.Message,
 			}

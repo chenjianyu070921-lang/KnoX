@@ -5,10 +5,13 @@ package logic
 
 import (
 	"context"
+	"time"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
+	"github.com/yourname/know/internal/breaker"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -27,6 +30,19 @@ func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
 }
 
 func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.ChatResp, err error) {
+	start := time.Now()
+	var answer string
+	defer func() {
+		l.svcCtx.Analytics.LogChat(
+			time.Since(start).Milliseconds(),
+			err == nil,
+			"",
+			len(req.Question),
+			len(answer),
+			0,
+		)
+	}()
+
 	session := l.svcCtx.SessionStore.GetOrCreate(req.SessionId)
 
 	// 搭完整 messages：System 提示 + 历史对话 + 当前问题
@@ -38,7 +54,11 @@ func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.
 		Role:    schema.User,
 		Content: req.Question,
 	})
-	answer, err := l.svcCtx.ReActAgent.RunWithMessages(l.ctx, l.svcCtx.ChatModel, messages, onToken)
+	err = breaker.Do(breaker.ARK, func() error {
+		var innerErr error
+		answer, innerErr = l.svcCtx.ReActAgent.RunWithMessages(l.ctx, l.svcCtx.ChatModel, messages, onToken)
+		return innerErr
+	})
 	if err != nil {
 		return nil, err
 	}

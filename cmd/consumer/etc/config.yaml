@@ -12,3 +12,7 @@ ollama:
   Model: bge-m3
 milvus:
   Addr: 127.0.0.1:19530
+consumer:
+  HandleTimeout: 60s
+  LockTTL: 90s
+  LockMaxRetries: 3

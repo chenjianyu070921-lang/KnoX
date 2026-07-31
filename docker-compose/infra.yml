@@ -1,4 +1,4 @@
-﻿version: "3.8"
+version: "3.8"
 services:
   mysql:
     image: mysql:8.0
@@ -64,5 +64,18 @@ services:
     ports:
       - "9001:9001"
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    environment:
+      CLICKHOUSE_DB: knox
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
 volumes:
   mysql_data:
+  clickhouse_data:

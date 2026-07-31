@@ -41,3 +41,50 @@ type UploadDocRespose struct {
 	Url     string `json:"url"`
 	Version int    `json:"version"`
 }
+
+// ---------- analytics 统计接口 ----------
+
+type AnalyticsEventStat struct {
+	Total     int64   `json:"total"`
+	AvgMs     float64 `json:"avgMs"`
+	MaxMs     int64   `json:"maxMs"`
+	ErrorRate float64 `json:"errorRate"`
+}
+
+type AnalyticsOverviewResp struct {
+	Chat   *AnalyticsEventStat `json:"chat"`
+	Search *AnalyticsEventStat `json:"search"`
+	Upload *AnalyticsEventStat `json:"upload"`
+}
+
+type AnalyticsTrendsReq struct {
+	Days int `form:"days,optional"`
+}
+
+type AnalyticsTrendPoint struct {
+	Date  string  `json:"date"`
+	Total int64   `json:"total"`
+	AvgMs float64 `json:"avgMs"`
+	P95Ms float64 `json:"p95Ms"`
+}
+
+type AnalyticsTrendsResp struct {
+	Points []AnalyticsTrendPoint `json:"points"`
+}
+
+type AnalyticsSlowReq struct {
+	Limit int `form:"limit,optional"`
+}
+
+type AnalyticsSlowItem struct {
+	EventTime  string `json:"eventTime"`
+	EventType  string `json:"eventType"`
+	DurationMs int64  `json:"durationMs"`
+	Success    bool   `json:"success"`
+	TraceID    string `json:"traceId"`
+	Detail     string `json:"detail"`
+}
+
+type AnalyticsSlowResp struct {
+	Items []AnalyticsSlowItem `json:"items"`
+}

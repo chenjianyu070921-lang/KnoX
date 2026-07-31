@@ -17,9 +17,10 @@ func NewConsumeRecordRepository(db *gorm.DB) *ConsumeRecordRepository {
 	return &ConsumeRecordRepository{db: db}
 }
 
-// CreateOrIgnore INSERT ... ON DUPLICATE KEY DO NOTHING
-func (r *ConsumeRecordRepository) CreateOrIgnore(ctx context.Context, record *model.ConsumeRecord) error {
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(record).Error
+// CreateOrIgnore INSERT ... ON DUPLICATE KEY DO NOTHING，返回是否真正插入
+func (r *ConsumeRecordRepository) CreateOrIgnore(ctx context.Context, record *model.ConsumeRecord) (bool, error) {
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(record)
+	return result.RowsAffected == 1, result.Error
 }
 
 // UpdateStatus 更新状态；failed 时 retry_count+1
