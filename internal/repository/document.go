@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/yourname/know/internal/model"
@@ -54,6 +55,17 @@ func (r *DocumentRepository) List(ctx context.Context, page, size int) ([]model.
 	offset := (page - 1) * size
 	err := db.Offset(offset).Limit(size).Order("created_at desc").Find(&docs).Error
 	return docs, total, err
+}
+func (r *DocumentRepository) GetByRequestID(ctx context.Context, requestId string) (*model.Document, error) {
+	var doc model.Document
+	err := r.db.WithContext(ctx).Where("request_id = ?", requestId).First(&doc).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil // 未命中不是错误，调用方判 nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &doc, nil
 }
 
 // GenDocID 生成对外文档 ID

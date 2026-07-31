@@ -5,12 +5,10 @@ package logic
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
-
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -40,7 +38,6 @@ func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.
 		Role:    schema.User,
 		Content: req.Question,
 	})
-	fmt.Println(messages)
 	answer, err := l.svcCtx.ReActAgent.RunWithMessages(l.ctx, l.svcCtx.ChatModel, messages, onToken)
 	if err != nil {
 		return nil, err

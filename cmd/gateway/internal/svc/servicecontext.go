@@ -19,6 +19,7 @@ import (
 	"github.com/yourname/know/internal/vector"
 	"github.com/yourname/know/pkg/database"
 	"github.com/yourname/know/pkg/redisx"
+	"github.com/yourname/know/pkg/redisx/distlock"
 	"gorm.io/gorm"
 )
 
@@ -30,6 +31,7 @@ type ServiceContext struct {
 	ReActAgent    *agent.ReActAgent
 	ChatModel     *ark.ChatModel
 	SessionStore  *session.Store
+	Lock          *distlock.DistLock
 	DocRepo       *repository.DocumentRepository
 }
 
@@ -43,6 +45,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		panic("failed to connect redis: " + err.Error())
 	}
+	lock := distlock.NewDistLock(client)
+
 	//3.连接kafka生产者
 	kafkaConfig := sarama.NewConfig()
 	kafkaConfig.Producer.Return.Successes = true
@@ -78,6 +82,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		ChatModel:     chatModel,
 		ReActAgent:    reactAgent,
 		SessionStore:  store,
+		Lock:          lock,
 		DocRepo:       repository.NewDocumentRepository(db),
 	}
 }

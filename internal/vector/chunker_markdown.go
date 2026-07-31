@@ -77,7 +77,7 @@ func Chunk(ctx context.Context, docID, content, docType string) ([]*schema.Docum
 		}
 
 		// 补充元数据，标题路径前置到正文，一起向量化
-		doc.ID = fmt.Sprintf("chunk_%03d", i)
+		doc.ID = fmt.Sprintf("%s_chunk_%03d", docID, i)
 		doc.MetaData["title_path"] = titlePath
 		doc.MetaData["chunk_index"] = i
 		doc.Content = titlePath + "\n" + test

@@ -1,12 +1,14 @@
-﻿Mysql:
+﻿mysql:
   DSN: root:root@tcp(127.0.0.1:3306)/knox?charset=utf8mb4&parseTime=True&loc=Local
-Kafka:
+redis:
+  Addr: 127.0.0.1:6379
+kafka:
   Brokers:
     - 127.0.0.1:9092
   Topic: doc-embedding
   Group: doc-consumer-group
-Ollama:
+ollama:
   URL: http://127.0.0.1:11434
   Model: bge-m3
-Milvus:
+milvus:
   Addr: 127.0.0.1:19530

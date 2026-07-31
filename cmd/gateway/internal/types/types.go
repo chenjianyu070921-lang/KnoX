@@ -33,9 +33,7 @@ type SearchResult struct {
 }
 
 type UploadDocRequest struct {
-	Content  string `json:"content"`
-	FileName string `json:"fileName"`
-	DocType  string `json:"docType"`
+	RequestId string `json:"requestId"`
 }
 
 type UploadDocRespose struct {

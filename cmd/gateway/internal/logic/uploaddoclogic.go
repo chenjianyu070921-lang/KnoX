@@ -6,10 +6,13 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/google/uuid"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
 	"github.com/yourname/know/internal/errcode"
@@ -34,7 +37,33 @@ func NewUploadDocLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadD
 }
 
 func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request) (resp *types.UploadDocRespose, err error) {
-	//1.文件上传七牛云
+	//1.requestId幂等上传
+	if req.RequestId == "" {
+		return nil, errcode.New(errcode.DocUploadFailed, "请求id缺失")
+	}
+	token := uuid.NewString()
+	redisKey := fmt.Sprintf("idem:upload:%s", req.RequestId)
+	lock, err := l.svcCtx.Lock.TryLock(l.ctx, redisKey, token, time.Second*30)
+	if err != nil {
+		return nil, errcode.New(errcode.DocUploadFailed, "抢锁失败: "+err.Error())
+	}
+	if !lock {
+		doc, err := l.svcCtx.DocRepo.GetByRequestID(l.ctx, req.RequestId)
+		if err != nil {
+			return nil, errcode.New(errcode.DocUploadFailed, "根据请求id查询文档失败: "+err.Error())
+		}
+		if doc == nil {
+			return nil, errcode.New(errcode.DocUploadFailed, "请求处理中，请稍后重试")
+		}
+		// DB 有记录 → 幂等返回已有结果
+		return &types.UploadDocRespose{
+			DocId:   doc.DocID,
+			Url:     doc.FileUrl,
+			Version: doc.Version,
+		}, nil
+	}
+	defer l.svcCtx.Lock.Unlock(l.ctx, redisKey, token)
+	//2.文件上传七牛云
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		return nil, errcode.New(errcode.DocUploadFailed, "读取上传文件失败: "+err.Error())
@@ -58,17 +87,19 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 	}
 	logx.Infof("qiniu upload success, key=%s, url=%s", key, Url)
 
-	//2.详情信息存入mysql
+	//3.详情信息存入mysql
 	document := model.Document{
-		DocID:   docID,
-		Title:   header.Filename,
-		Content: content,
-		DocType: ext,
+		DocID:     docID,
+		Title:     header.Filename,
+		Content:   content,
+		DocType:   ext,
+		FileUrl:   Url,
+		RequestID: &req.RequestId,
 	}
 	if err = l.svcCtx.DocRepo.Create(l.ctx, &document); err != nil {
 		return nil, errcode.New(errcode.DocUploadFailed, err.Error())
 	}
-	//3.异步发送kafka
+	//4.异步发送kafka
 	go func() {
 		task := map[string]string{
 			"docId":    document.DocID,
