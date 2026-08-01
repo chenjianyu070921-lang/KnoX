@@ -138,9 +138,7 @@ func (a *ReActAgent) RunWithMessages(ctx context.Context, chatModel interface {
 			}
 			toolCalls = append(toolCalls, msg.ToolCalls...)
 		}
-		if err := stream.Close(); err != nil {
-			return "", fmt.Errorf("close stream failed: %w", err)
-		}
+		stream.Close()
 
 		if len(toolCalls) > 0 {
 			assistantMsg := &schema.Message{Role: schema.Assistant, Content: ""}
