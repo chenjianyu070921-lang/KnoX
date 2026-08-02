@@ -22,9 +22,3 @@ func MysqlInit(dsn string) *gorm.DB {
 	})
 	return db
 }
-func GetDB(dsn string) *gorm.DB {
-	if db == nil {
-		return MysqlInit(dsn)
-	}
-	return db
-}

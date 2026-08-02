@@ -1,4 +1,4 @@
-module github.com/yourname/know
+module github.com/chenjianyu/knox
 
 go 1.26.5
 
