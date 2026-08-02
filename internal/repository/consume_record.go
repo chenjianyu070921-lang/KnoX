@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/yourname/know/internal/model"
 	"gorm.io/gorm"
@@ -50,4 +51,17 @@ func (r *ConsumeRecordRepository) GetByKey(ctx context.Context, topic string, pa
 		return nil, err
 	}
 	return &record, nil
+}
+func (r *ConsumeRecordRepository) TakeOver(ctx context.Context, topic string, partition int32, offset int64, maxRetries int, staleBefore time.Time) (bool, error) {
+	res := r.db.WithContext(ctx).
+		Model(&model.ConsumeRecord{}).
+		Where("topic = ? AND partition = ? AND offset = ?", topic, partition, offset).
+		Where("status = ? OR (status = ? AND updated_at < ?)",
+			model.ConsumeStatusFailed, model.ConsumeStatusProcessing, staleBefore).
+		Where("retry_count < ?", maxRetries).
+		Updates(map[string]interface{}{
+			"status":  model.ConsumeStatusProcessing,
+			"message": "",
+		})
+	return res.RowsAffected == 1, res.Error
 }

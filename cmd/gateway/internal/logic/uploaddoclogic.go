@@ -143,24 +143,22 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 		return nil, errcode.New(errcode.DocUploadFailed, err.Error())
 	}
 	//4.异步发送kafka
-	go func() {
-		task := map[string]string{
-			"docId":    document.DocID,
-			"filename": document.Title,
-			"url":      Url,
-			"docType":  document.DocType,
-		}
-		msgBytes, _ := json.Marshal(task)
+	task := map[string]string{
+		"docId":    document.DocID,
+		"filename": document.Title,
+		"url":      Url,
+		"docType":  document.DocType,
+	}
+	msgBytes, _ := json.Marshal(task)
 
-		msg := &sarama.ProducerMessage{
-			Topic: l.svcCtx.Config.Kafka.Topic,
-			Value: sarama.ByteEncoder(msgBytes),
-		}
-		_, _, err = l.svcCtx.KafkaProducer.SendMessage(msg)
-		if err != nil {
-			logx.Errorf("send kafka message failed: %v", err)
-		}
-	}()
+	msg := &sarama.ProducerMessage{
+		Topic: l.svcCtx.Config.Kafka.Topic,
+		Value: sarama.ByteEncoder(msgBytes),
+	}
+	_, _, err = l.svcCtx.KafkaProducer.SendMessage(msg)
+	if err != nil {
+		logx.Errorf("发送索引任务失败: %v", err)
+	}
 	return &types.UploadDocRespose{
 		DocId:   document.DocID,
 		Url:     Url,

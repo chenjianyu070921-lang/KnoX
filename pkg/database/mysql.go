@@ -15,7 +15,7 @@ var (
 func MysqlInit(dsn string) *gorm.DB {
 	var err error
 	once.Do(func() {
-		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{TranslateError: true})
 		if err != nil {
 			panic(err)
 		}

@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -105,7 +105,7 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 	}
 	defer h.lock.Unlock(ctx, lockKey, token)
 
-	// 3. 锁内复查
+	// 3. 锁内复查：done / 已放弃 直接跳过
 	record, err = h.recordRepo.GetByKey(ctx, topic, partition, offset)
 	if err != nil {
 		log.Printf("[%s] double-check consume_record failed: %v", task.DocID, err)
@@ -120,22 +120,49 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 		return true
 	}
 
-	// 4. 插入 processing 记录（OnConflict DoNothing）
-	newRecord := &model.ConsumeRecord{
-		Topic:     topic,
-		Partition: partition,
-		Offset:    offset,
-		DocID:     task.DocID,
-		Status:    model.ConsumeStatusProcessing,
+	// 4. 赢家裁决：只有把行置成 processing 的消费者才继续处理
+	staleBefore := time.Now().Add(-h.lockTTL)
+	var claimed bool
+
+	if record == nil {
+		newRecord := &model.ConsumeRecord{
+			Topic:     topic,
+			Partition: partition,
+			Offset:    offset,
+			DocID:     task.DocID,
+			Status:    model.ConsumeStatusProcessing,
+		}
+		inserted, err := h.recordRepo.CreateOrIgnore(ctx, newRecord)
+		if err != nil {
+			log.Printf("[%s] insert consume_record failed: %v", task.DocID, err)
+			return false
+		}
+		if inserted {
+			claimed = true
+		} else {
+			// 别人抢先插入了：重新查，按已有状态决定是接管还是让路
+			record, err = h.recordRepo.GetByKey(ctx, topic, partition, offset)
+			if err != nil {
+				log.Printf("[%s] re-check consume_record failed: %v", task.DocID, err)
+				return false
+			}
+			if record != nil && (record.Status == model.ConsumeStatusDone ||
+				(record.Status == model.ConsumeStatusFailed && record.RetryCount >= h.maxRetries)) {
+				return true // 已完成或已放弃，直接标记消费
+			}
+		}
 	}
-	inserted, err := h.recordRepo.CreateOrIgnore(ctx, newRecord)
-	if err != nil {
-		log.Printf("[%s] insert consume_record failed: %v", task.DocID, err)
-		return false
+
+	if !claimed {
+		claimed, err = h.recordRepo.TakeOver(ctx, topic, partition, offset, h.maxRetries, staleBefore)
+		if err != nil {
+			log.Printf("[%s] take over consume_record failed: %v", task.DocID, err)
+			return false
+		}
 	}
-	if !inserted {
-		log.Printf("[%s] consume_record already exists, skip", task.DocID)
-		return true
+	if !claimed {
+		log.Printf("[%s] another consumer is handling, skip", task.DocID)
+		return false // 不标记，等真正的赢家结果
 	}
 
 	// 5. 业务处理：查 Document → Chunk → Milvus
@@ -145,30 +172,42 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 	var doc model.Document
 	if err := h.db.WithContext(ctx).Where("doc_id = ?", task.DocID).First(&doc).Error; err != nil {
 		log.Printf("[%s] doc not found: %v", task.DocID, err)
-		h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error())
+		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error()); updErr != nil {
+			log.Printf("[%s] mark failed failed: %v", task.DocID, updErr)
+		}
 		return false
 	}
 
 	chunks, err := vector.Chunk(ctx, doc.DocID, doc.Content, doc.DocType)
 	if err != nil {
 		log.Printf("[%s] chunk failed: %v", task.DocID, err)
-		h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error())
+		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error()); updErr != nil {
+			log.Printf("[%s] mark failed failed: %v", task.DocID, updErr)
+		}
 		return false
 	}
 	if len(chunks) == 0 {
 		log.Printf("[%s] no chunks", task.DocID)
-		h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusDone, "no chunks")
+		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusDone, "no chunks"); updErr != nil {
+			log.Printf("[%s] mark done failed: %v", task.DocID, updErr)
+			return false
+		}
 		return true
 	}
 
 	if _, err := docIndexer.Store(ctx, chunks); err != nil {
 		log.Printf("[%s] index failed: %v", task.DocID, err)
-		h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error())
+		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error()); updErr != nil {
+			log.Printf("[%s] mark failed failed: %v", task.DocID, updErr)
+		}
 		return false
 	}
 
 	// 6. 标记成功
-	h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusDone, "")
+	if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusDone, ""); updErr != nil {
+		log.Printf("[%s] mark done failed: %v", task.DocID, updErr)
+		return false
+	}
 	log.Printf("[%s] indexed successfully (%d chunks)", task.DocID, len(chunks))
 	return true
 }
