@@ -9,9 +9,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
-	"github.com/yourname/know/internal/breaker"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/internal/breaker"
+	"github.com/chenjianyu070921-lang/KnoX/internal/requestid"
 
 	"github.com/cloudwego/eino/schema"
 
@@ -45,7 +46,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.
 		l.svcCtx.Analytics.LogChat(
 			time.Since(start).Milliseconds(),
 			err == nil,
-			"",
+			requestid.FromContext(l.ctx),
 			len(req.Question),
 			len(answer),
 			0,

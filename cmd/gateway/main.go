@@ -5,15 +5,14 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/yourname/know/cmd/gateway/internal/config"
-	"github.com/yourname/know/cmd/gateway/internal/handler"
-	"github.com/yourname/know/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/config"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/handler"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
 
-	"github.com/yourname/know/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
@@ -77,6 +76,6 @@ func main() {
 			"message": errcode.Msg(errcode.InternalError),
 		}
 	})
-	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
+	logx.Infof("Starting server at %s:%d", c.Host, c.Port)
 	server.Start()
 }

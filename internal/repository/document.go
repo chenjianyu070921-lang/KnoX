@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yourname/know/internal/model"
+	"github.com/chenjianyu070921-lang/KnoX/internal/model"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -37,6 +37,7 @@ func (r *DocumentRepository) GetByDocID(ctx context.Context, docID string) (*mod
 
 // UpdateVersion 乐观锁更新（version + 1）
 func (r *DocumentRepository) UpdateVersion(ctx context.Context, docID string, currentVersion int, updates map[string]interface{}) error {
+	updates["version"] = gorm.Expr("version + 1")
 	result := r.db.WithContext(ctx).Model(&model.Document{}).
 		Where("doc_id = ? AND version = ?", docID, currentVersion).
 		Updates(updates)
@@ -46,12 +47,15 @@ func (r *DocumentRepository) UpdateVersion(ctx context.Context, docID string, cu
 	return result.Error
 }
 
-// List 分页查询
-func (r *DocumentRepository) List(ctx context.Context, page, size int) ([]model.Document, int64, error) {
+// List 分页查询，keyword 非空时按标题模糊过滤
+func (r *DocumentRepository) List(ctx context.Context, page, size int, keyword string) ([]model.Document, int64, error) {
 	var docs []model.Document
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&model.Document{})
+	if keyword != "" {
+		db = db.Where("title LIKE ?", "%"+keyword+"%")
+	}
 	db.Count(&total)
 
 	offset := (page - 1) * size

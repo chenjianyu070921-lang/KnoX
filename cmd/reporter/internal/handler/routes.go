@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/yourname/know/cmd/reporter/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/reporter/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
 )

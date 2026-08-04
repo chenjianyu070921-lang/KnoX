@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/yourname/know/cmd/gateway/internal/logic"
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
-	"github.com/yourname/know/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/logic"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/internal/requestid"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
@@ -35,7 +36,8 @@ func ChatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := logic.NewChatLogic(r.Context(), svcCtx)
+		ctx := requestid.WithID(r.Context(), r.Header.Get("X-Request-Id"))
+		l := logic.NewChatLogic(ctx, svcCtx)
 		resp, err := l.Chat(&req,
 			func(token string) {
 				data, _ := json.Marshal(map[string]string{"content": token})

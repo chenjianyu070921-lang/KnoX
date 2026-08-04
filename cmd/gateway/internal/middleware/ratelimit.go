@@ -8,7 +8,7 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/rest/httpx"
 
-	"github.com/yourname/know/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
 )
 
 // WithRateLimit 用 go-zero PeriodLimit 包裹 handler，对超限请求返回 429。

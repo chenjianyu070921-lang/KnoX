@@ -5,15 +5,10 @@ type UploadDocRequest {
 	RequestId string `json:"requestId"`
 }
 
-type UploadDocRespose {
+type UploadDocResponse {
 	DocId   string `json:"docId"`
 	Url     string `json:"url"`
 	Version int    `json:"version"`
-}
-
-//=============================================================
-type PingResp {
-	Message string `json:"message"`
 }
 
 //============================================================
@@ -43,20 +38,71 @@ type ChatResp {
 	SessionId string `json:"sessionId,optional"`
 }
 
+//===========================================================
+type AnalyticsEventStat {
+	Total     int64   `json:"total"`
+	AvgMs     float64 `json:"avgMs"`
+	MaxMs     int64   `json:"maxMs"`
+	ErrorRate float64 `json:"errorRate"`
+}
+
+type AnalyticsOverviewResp {
+	Chat   *AnalyticsEventStat `json:"chat"`
+	Search *AnalyticsEventStat `json:"search"`
+	Upload *AnalyticsEventStat `json:"upload"`
+}
+
+type AnalyticsTrendsReq {
+	Days int `form:"days,optional"`
+}
+
+type AnalyticsTrendPoint {
+	Date  string  `json:"date"`
+	Total int64   `json:"total"`
+	AvgMs float64 `json:"avgMs"`
+	P95Ms float64 `json:"p95Ms"`
+}
+
+type AnalyticsTrendsResp {
+	Points []AnalyticsTrendPoint `json:"points"`
+}
+
+type AnalyticsSlowReq {
+	Limit int `form:"limit,optional"`
+}
+
+type AnalyticsSlowItem {
+	EventTime  string `json:"eventTime"`
+	EventType  string `json:"eventType"`
+	DurationMs int64  `json:"durationMs"`
+	Success    bool   `json:"success"`
+	TraceID    string `json:"traceId"`
+	Detail     string `json:"detail"`
+}
+
+type AnalyticsSlowResp {
+	Items []AnalyticsSlowItem `json:"items"`
+}
+
 @server (
 	prefix: /api/v1
 )
 service Doc {
 	@handler UploadDoc
-	post /doc/upload (UploadDocRequest) returns (UploadDocRespose)
-
-	@handler Ping
-	get /ping (PingResp)
+	post /doc/upload (UploadDocRequest) returns (UploadDocResponse)
 
 	@handler Search
 	post /search (SearchReq) returns (SearchResp)
 
 	@handler Chat
 	post /chat (ChatReq) returns (ChatResp)
-}
 
+	@handler AnalyticsOverview
+	get /analytics/overview returns (AnalyticsOverviewResp)
+
+	@handler AnalyticsTrends
+	get /analytics/trends (AnalyticsTrendsReq) returns (AnalyticsTrendsResp)
+
+	@handler AnalyticsSlow
+	get /analytics/slow-queries (AnalyticsSlowReq) returns (AnalyticsSlowResp)
+}

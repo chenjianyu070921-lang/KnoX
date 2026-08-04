@@ -13,10 +13,6 @@ type ChatResp struct {
 	SessionId string `json:"sessionId,optional"`
 }
 
-type PingResp struct {
-	Message string `json:"message"`
-}
-
 type SearchReq struct {
 	Query string `json:"query"`
 	TopK  int    `json:"topK,optional"`
@@ -36,7 +32,7 @@ type UploadDocRequest struct {
 	RequestId string `json:"requestId"`
 }
 
-type UploadDocRespose struct {
+type UploadDocResponse struct {
 	DocId   string `json:"docId"`
 	Url     string `json:"url"`
 	Version int    `json:"version"`
@@ -101,8 +97,9 @@ type DocItem struct {
 }
 
 type DocListReq struct {
-	Page int `form:"page,optional"`
-	Size int `form:"size,optional"`
+	Page    int    `form:"page,optional"`
+	Size    int    `form:"size,optional"`
+	Keyword string `form:"keyword,optional"`
 }
 
 type DocListResp struct {

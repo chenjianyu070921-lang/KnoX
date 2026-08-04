@@ -3,7 +3,7 @@ package breaker
 import (
 	"errors"
 
-	"github.com/yourname/know/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
 	gobreaker "github.com/zeromicro/go-zero/core/breaker"
 )
 

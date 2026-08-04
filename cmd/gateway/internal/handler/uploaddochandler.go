@@ -6,10 +6,10 @@ package handler
 import (
 	"net/http"
 
-	"github.com/yourname/know/cmd/gateway/internal/logic"
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
-	"github.com/yourname/know/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/logic"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 )

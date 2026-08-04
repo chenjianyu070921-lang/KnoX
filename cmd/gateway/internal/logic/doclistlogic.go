@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/internal/requestid"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -35,11 +36,11 @@ func (l *DocListLogic) DocList(req *types.DocListReq) (*types.DocListResp, error
 	}
 
 	start := time.Now()
-	docs, total, err := l.svcCtx.DocRepo.List(l.ctx, page, size)
+	docs, total, err := l.svcCtx.DocRepo.List(l.ctx, page, size, req.Keyword)
 	if err != nil {
 		l.svcCtx.Analytics.LogSearch(
 			time.Since(start).Milliseconds(),
-			false, "", "doc_list", 0,
+			false, requestid.FromContext(l.ctx), "doc_list", 0,
 		)
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func (l *DocListLogic) DocList(req *types.DocListReq) (*types.DocListResp, error
 
 	l.svcCtx.Analytics.LogSearch(
 		time.Since(start).Milliseconds(),
-		true, "", "doc_list", len(items),
+		true, requestid.FromContext(l.ctx), "doc_list", len(items),
 	)
 
 	return &types.DocListResp{

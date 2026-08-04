@@ -22,8 +22,8 @@ KnoX 是一个基于 **go-zero** 微服务架构的企业级智能知识库后�
 | Web 框架 | go-zero 1.10.2（REST + 内置中间件） |
 | 数据库 | MySQL 8.0（GORM） |
 | 缓存 | Redis 7.x（go-redis + go-zero Redis） |
-| 消息队列 | Kafka 3.7（IBM Sarama） |
-| 向量数据库 | Milvus 2.5（HNSW + COSINE） |
+| 消息队列 | Kafka 4.3.1（IBM Sarama） |
+| 向量数据库 | Milvus 2.6.8（HNSW + COSINE） |
 | 对象存储 | 七牛云（Qiniu SDK） |
 | Embedding | Ollama bge-m3（1024 维） |
 | LLM | 火山方舟 ARK（OpenAI 兼容 API） |
@@ -52,6 +52,7 @@ KnoX 是一个基于 **go-zero** 微服务架构的企业级智能知识库后�
 | `KNOX_ARK_API_KEY` | 火山方舟 API Key |
 | `KNOX_MYSQL_DSN` | MySQL 连接串（可选覆盖） |
 | `KNOX_CLICKHOUSE_PASSWORD` | ClickHouse 密码（可选覆盖） |
+| `KNOX_CLICKHOUSE_DSN` | Reporter 的 ClickHouse 连接串（可选覆盖） |
 
 变量模板见 `.env.example`。PowerShell 启动前示例：
 
@@ -89,16 +90,16 @@ go run ./cmd/consumer -f cmd/consumer/etc/config.yaml
 go run ./cmd/gateway -f cmd/gateway/etc/doc.yaml
 ```
 
+启动统计大盘服务（前端大盘页依赖）：
+
+```shell
+go run ./cmd/reporter -f cmd/reporter/etc/reporter.yaml
+```
+
 或使用 Makefile：
 
 ```shell
 make run
-```
-
-健康检查：
-
-```shell
-curl http://127.0.0.1:8080/api/v1/ping
 ```
 
 ## 5. 目录结构说明
@@ -117,9 +118,12 @@ KnoX/
 │   │       ├── middleware/       # 限流中间件
 │   │       ├── svc/              # 依赖注入
 │   │       └── types/            # 请求响应结构
-│   └── consumer/                 # Kafka 异步消费者
-│       ├── etc/config.yaml       # 消费者配置
-│       └── internal/config/
+│   ├── consumer/                 # Kafka 异步消费者
+│   │   ├── etc/config.yaml       # 消费者配置
+│   │   └── internal/config/
+│   └── reporter/                 # 统计大盘服务
+│       ├── etc/reporter.yaml     # 大盘配置
+│       └── internal/
 ├── docker-compose/
 │   └── infra.yml                 # 基础设施编排
 ├── internal/
@@ -132,7 +136,7 @@ KnoX/
 │   ├── session/                  # Redis 会话历史
 │   └── vector/                   # 分块/Embedding/索引/检索
 ├── pkg/
-│   ├── QiniuYun/                 # 七牛云上传
+│   ├── qiniuyun/                 # 七牛云上传
 │   ├── clickhouse/               # ClickHouse 连接
 │   ├── database/                 # MySQL 连接
 │   └── redisx/                   # Redis 连接与分布式锁
@@ -216,11 +220,14 @@ curl -N -X POST http://127.0.0.1:8080/api/v1/chat \
 
 ### 统计接口
 
-| 接口 | 说明 |
-| --- | --- |
-| `GET /api/v1/analytics/overview` | 最近 24h 总数、平均耗时、最大耗时、错误率 |
-| `GET /api/v1/analytics/trends?days=7` | 按天趋势与 p95 |
-| `GET /api/v1/analytics/slow-queries?limit=20` | 耗时最长的操作日志 |
+统计接口由两个服务提供：Gateway（`8080`）提供明细/趋势/慢查询，Reporter（`8081`）提供前端大盘聚合数据。
+
+| 服务 | 接口 | 说明 |
+| --- | --- | --- |
+| Gateway | `GET http://127.0.0.1:8080/api/v1/analytics/overview` | 最近 24h 总数、平均耗时、最大耗时、错误率 |
+| Gateway | `GET http://127.0.0.1:8080/api/v1/analytics/trends?days=7` | 按天趋势与 p95 |
+| Gateway | `GET http://127.0.0.1:8080/api/v1/analytics/slow-queries?limit=20` | 耗时最长的操作日志 |
+| Reporter | `GET http://127.0.0.1:8081/api/v1/analytics/dashboard` | 大盘聚合：24h 趋势、事件分布、P50/P95/P99、7 天成功率 |
 
 ### 统一错误码
 

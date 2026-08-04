@@ -4,19 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
-	"github.com/yourname/know/cmd/consumer/internal/config"
-	"github.com/yourname/know/internal/model"
-	"github.com/yourname/know/internal/repository"
-	"github.com/yourname/know/internal/vector"
-	"github.com/yourname/know/pkg/redisx/distlock"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/consumer/internal/config"
+	"github.com/chenjianyu070921-lang/KnoX/internal/model"
+	"github.com/chenjianyu070921-lang/KnoX/internal/repository"
+	"github.com/chenjianyu070921-lang/KnoX/internal/vector"
+	"github.com/chenjianyu070921-lang/KnoX/pkg/redisx/distlock"
 
 	"github.com/IBM/sarama"
 	"github.com/cloudwego/eino-ext/components/indexer/milvus2"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
 	"gorm.io/gorm"
 )
 
@@ -66,10 +66,23 @@ func (h *messageHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim
 func (h *messageHandler) Setup(sarama.ConsumerGroupSession) error   { return nil }
 func (h *messageHandler) Cleanup(sarama.ConsumerGroupSession) error { return nil }
 
+func consumerLogger(ctx context.Context, docID, topic string, partition int32, offset int64) logx.Logger {
+	return logx.WithContext(ctx).WithFields(
+		logx.Field("docId", docID),
+		logx.Field("topic", topic),
+		logx.Field("partition", partition),
+		logx.Field("offset", offset),
+	)
+}
+
 func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.ConsumerMessage) bool {
 	var task embedTask
 	if err := json.Unmarshal(msg.Value, &task); err != nil {
-		log.Printf("invalid message: %v", err)
+		logx.WithContext(ctx).WithFields(
+			logx.Field("topic", msg.Topic),
+			logx.Field("partition", msg.Partition),
+			logx.Field("offset", msg.Offset),
+		).Errorf("invalid message: %v", err)
 		return true // 格式错误直接跳过，避免死循环
 	}
 
@@ -80,15 +93,15 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 	// 1. 查消费记录，done 直接跳过
 	record, err := h.recordRepo.GetByKey(ctx, topic, partition, offset)
 	if err != nil {
-		log.Printf("[%s] check consume_record failed: %v", task.DocID, err)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("check consume_record failed: %v", err)
 		return false
 	}
 	if record != nil && record.Status == model.ConsumeStatusDone {
-		log.Printf("[%s] already consumed (topic=%s partition=%d offset=%d)", task.DocID, topic, partition, offset)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Infof("already consumed")
 		return true
 	}
 	if record != nil && record.Status == model.ConsumeStatusFailed && record.RetryCount >= h.maxRetries {
-		log.Printf("[%s] give up after %d retries (topic=%s partition=%d offset=%d)", task.DocID, record.RetryCount, topic, partition, offset)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("give up after %d retries", record.RetryCount)
 		return true
 	}
 
@@ -97,11 +110,11 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 	token := uuid.NewString()
 	ok, err := h.lock.TryLock(ctx, lockKey, token, h.lockTTL)
 	if err != nil {
-		log.Printf("[%s] try lock failed: %v", task.DocID, err)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("try lock failed: %v", err)
 		return false
 	}
 	if !ok {
-		log.Printf("[%s] lock busy, will retry", task.DocID)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Infof("lock busy, will retry")
 		return false
 	}
 	defer h.lock.Unlock(ctx, lockKey, token)
@@ -109,15 +122,15 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 	// 3. 锁内复查：done / 已放弃 直接跳过
 	record, err = h.recordRepo.GetByKey(ctx, topic, partition, offset)
 	if err != nil {
-		log.Printf("[%s] double-check consume_record failed: %v", task.DocID, err)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("double-check consume_record failed: %v", err)
 		return false
 	}
 	if record != nil && record.Status == model.ConsumeStatusDone {
-		log.Printf("[%s] double-check: already done", task.DocID)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Infof("double-check: already done")
 		return true
 	}
 	if record != nil && record.Status == model.ConsumeStatusFailed && record.RetryCount >= h.maxRetries {
-		log.Printf("[%s] double-check: give up after %d retries", task.DocID, record.RetryCount)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("double-check: give up after %d retries", record.RetryCount)
 		return true
 	}
 
@@ -135,7 +148,7 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 		}
 		inserted, err := h.recordRepo.CreateOrIgnore(ctx, newRecord)
 		if err != nil {
-			log.Printf("[%s] insert consume_record failed: %v", task.DocID, err)
+			consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("insert consume_record failed: %v", err)
 			return false
 		}
 		if inserted {
@@ -144,7 +157,7 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 			// 别人抢先插入了：重新查，按已有状态决定是接管还是让路
 			record, err = h.recordRepo.GetByKey(ctx, topic, partition, offset)
 			if err != nil {
-				log.Printf("[%s] re-check consume_record failed: %v", task.DocID, err)
+				consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("re-check consume_record failed: %v", err)
 				return false
 			}
 			if record != nil && (record.Status == model.ConsumeStatusDone ||
@@ -157,12 +170,12 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 	if !claimed {
 		claimed, err = h.recordRepo.TakeOver(ctx, topic, partition, offset, h.maxRetries, staleBefore)
 		if err != nil {
-			log.Printf("[%s] take over consume_record failed: %v", task.DocID, err)
+			consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("take over consume_record failed: %v", err)
 			return false
 		}
 	}
 	if !claimed {
-		log.Printf("[%s] another consumer is handling, skip", task.DocID)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Infof("another consumer is handling, skip")
 		return false // 不标记，等真正的赢家结果
 	}
 
@@ -172,44 +185,44 @@ func (h *messageHandler) handleMessage(ctx context.Context, msg *sarama.Consumer
 
 	var doc model.Document
 	if err := h.db.WithContext(ctx).Where("doc_id = ?", task.DocID).First(&doc).Error; err != nil {
-		log.Printf("[%s] doc not found: %v", task.DocID, err)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("doc not found: %v", err)
 		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error()); updErr != nil {
-			log.Printf("[%s] mark failed failed: %v", task.DocID, updErr)
+			consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("mark failed failed: %v", updErr)
 		}
 		return false
 	}
 
 	chunks, err := vector.Chunk(ctx, doc.DocID, doc.Content, doc.DocType)
 	if err != nil {
-		log.Printf("[%s] chunk failed: %v", task.DocID, err)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("chunk failed: %v", err)
 		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error()); updErr != nil {
-			log.Printf("[%s] mark failed failed: %v", task.DocID, updErr)
+			consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("mark failed failed: %v", updErr)
 		}
 		return false
 	}
 	if len(chunks) == 0 {
-		log.Printf("[%s] no chunks", task.DocID)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Infof("no chunks")
 		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusDone, "no chunks"); updErr != nil {
-			log.Printf("[%s] mark done failed: %v", task.DocID, updErr)
+			consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("mark done failed: %v", updErr)
 			return false
 		}
 		return true
 	}
 
 	if _, err := docIndexer.Store(ctx, chunks); err != nil {
-		log.Printf("[%s] index failed: %v", task.DocID, err)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("index failed: %v", err)
 		if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusFailed, err.Error()); updErr != nil {
-			log.Printf("[%s] mark failed failed: %v", task.DocID, updErr)
+			consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("mark failed failed: %v", updErr)
 		}
 		return false
 	}
 
 	// 6. 标记成功
 	if updErr := h.recordRepo.UpdateStatus(ctx, topic, partition, offset, model.ConsumeStatusDone, ""); updErr != nil {
-		log.Printf("[%s] mark done failed: %v", task.DocID, updErr)
+		consumerLogger(ctx, task.DocID, topic, partition, offset).Errorf("mark done failed: %v", updErr)
 		return false
 	}
-	log.Printf("[%s] indexed successfully (%d chunks)", task.DocID, len(chunks))
+	consumerLogger(ctx, task.DocID, topic, partition, offset).Infof("indexed successfully (%d chunks)", len(chunks))
 	return true
 }
 
@@ -219,12 +232,12 @@ func consumerInsertDocInMilvus(ctx context.Context, db *gorm.DB, redisClient *re
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("消费者退出")
+			logx.Infof("消费者退出")
 			return
 		default:
 			err := consumer.Consume(ctx, []string{c.Kafka.Topic}, handler)
 			if err != nil && ctx.Err() == nil {
-				log.Printf("Kafka consume error: %v", err)
+				logx.Errorf("Kafka consume error: %v", err)
 				time.Sleep(1 * time.Second)
 			}
 		}

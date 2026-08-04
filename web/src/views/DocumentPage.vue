@@ -326,13 +326,13 @@ function renderMarkdown(md: string) {
     return `<blockquote class="${cls}">${icon}${text}</blockquote>`
   }
 
-  renderer.table = function ({ header, rows }: { header: string[]; rows: string[][] }) {
+  renderer.table = function (token: { header: Array<{ text: string }>; rows: Array<Array<{ text: string }>> }) {
     let html = '<div class="doc-table-wrap"><table class="doc-table"><thead><tr>'
-    for (const h of header) html += `<th>${h}</th>`
+    for (const h of token.header) html += `<th>${h.text}</th>`
     html += '</tr></thead><tbody>'
-    for (const row of rows) {
+    for (const row of token.rows) {
       html += '<tr>'
-      for (const cell of row) html += `<td>${cell}</td>`
+      for (const cell of row) html += `<td>${cell.text}</td>`
       html += '</tr>'
     }
     html += '</tbody></table></div>'

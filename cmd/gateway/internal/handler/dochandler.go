@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yourname/know/cmd/gateway/internal/logic"
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
-	"github.com/yourname/know/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/logic"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/internal/requestid"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
@@ -20,7 +21,8 @@ func DocListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, errcode.New(errcode.BadRequest, "参数错误: "+err.Error()))
 			return
 		}
-		l := logic.NewDocListLogic(r.Context(), svcCtx)
+		ctx := requestid.WithID(r.Context(), r.Header.Get("X-Request-Id"))
+		l := logic.NewDocListLogic(ctx, svcCtx)
 		resp, err := l.DocList(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)

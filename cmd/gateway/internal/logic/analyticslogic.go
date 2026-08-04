@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

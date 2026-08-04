@@ -12,12 +12,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/yourname/know/cmd/gateway/internal/svc"
-	"github.com/yourname/know/cmd/gateway/internal/types"
-	"github.com/yourname/know/internal/errcode"
-	"github.com/yourname/know/internal/model"
-	"github.com/yourname/know/internal/repository"
-	"github.com/yourname/know/pkg/QiniuYun"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
+	"github.com/chenjianyu070921-lang/KnoX/internal/model"
+	"github.com/chenjianyu070921-lang/KnoX/internal/repository"
+	"github.com/chenjianyu070921-lang/KnoX/pkg/qiniuyun"
 
 	"github.com/IBM/sarama"
 	"github.com/google/uuid"
@@ -39,15 +39,16 @@ func NewUploadDocLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadD
 	}
 }
 
-func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request) (resp *types.UploadDocRespose, err error) {
+func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request) (resp *types.UploadDocResponse, err error) {
 	start := time.Now()
+	traceID := r.Header.Get("X-Request-Id")
 	var filename string
 	var fileSize int64
 	defer func() {
 		l.svcCtx.Analytics.LogUpload(
 			time.Since(start).Milliseconds(),
 			err == nil,
-			"",
+			traceID,
 			filename,
 			fileSize,
 		)
@@ -72,7 +73,7 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 			return nil, errcode.New(errcode.DocUploadFailed, "请求处理中，请稍后重试")
 		}
 		// DB 有记录 → 幂等返回已有结果
-		return &types.UploadDocRespose{
+		return &types.UploadDocResponse{
 			DocId:   doc.DocID,
 			Url:     doc.FileUrl,
 			Version: doc.Version,
@@ -88,7 +89,7 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 		return nil, errcode.New(errcode.DocUploadFailed, "查询已有文档失败: "+dbErr.Error())
 	}
 	if existingDoc != nil {
-		return &types.UploadDocRespose{
+		return &types.UploadDocResponse{
 			DocId:   existingDoc.DocID,
 			Url:     existingDoc.FileUrl,
 			Version: existingDoc.Version,
@@ -109,7 +110,7 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 	key := docID + ext // ASCII 安全对象名，避免中文/空格导致 URL 打不开
 
 	q := l.svcCtx.Config.Qiniu
-	Url, content, err := QiniuYun.QiniuYunUpload(file, header, QiniuYun.Config{
+	Url, content, err := qiniuyun.Upload(file, header, qiniuyun.Config{
 		AccessKey: q.AccessKey,
 		SecretKey: q.SecretKey,
 		Bucket:    q.Bucket,
@@ -134,7 +135,7 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			existing, getErr := l.svcCtx.DocRepo.GetByRequestID(l.ctx, req.RequestId)
 			if getErr == nil && existing != nil {
-				return &types.UploadDocRespose{
+				return &types.UploadDocResponse{
 					DocId:   existing.DocID,
 					Url:     existing.FileUrl,
 					Version: existing.Version,
@@ -158,9 +159,12 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 	}
 	_, _, err = l.svcCtx.KafkaProducer.SendMessage(msg)
 	if err != nil {
-		logx.Errorf("发送索引任务失败: %v", err)
+		logx.WithContext(l.ctx).WithFields(
+			logx.Field("requestId", req.RequestId),
+			logx.Field("docId", document.DocID),
+		).Errorf("发送索引任务失败: %v", err)
 	}
-	return &types.UploadDocRespose{
+	return &types.UploadDocResponse{
 		DocId:   document.DocID,
 		Url:     Url,
 		Version: document.Version,

@@ -12,8 +12,6 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-var splitter document.Transformer
-
 var (
 	chunkOnce     sync.Once
 	chunkSplitter document.Transformer
@@ -21,9 +19,8 @@ var (
 )
 
 func NewMarkdownChunker(ctx context.Context) (document.Transformer, error) {
-	var err error
 	// 1. 切分文档
-	splitter, err = markdown.NewHeaderSplitter(ctx, &markdown.HeaderConfig{
+	splitter, err := markdown.NewHeaderSplitter(ctx, &markdown.HeaderConfig{
 		Headers: map[string]string{
 			"#":   "h1",
 			"##":  "h2",

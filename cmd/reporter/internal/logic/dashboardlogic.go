@@ -3,9 +3,8 @@ package logic
 import (
 	"context"
 
-	"github.com/yourname/know/cmd/reporter/internal/svc"
-	"github.com/yourname/know/cmd/reporter/internal/types"
-	"github.com/yourname/know/internal/analytics"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/reporter/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/internal/analytics"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -24,55 +23,9 @@ func NewDashboardLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dashboa
 	}
 }
 
-func (l *DashboardLogic) Dashboard() (*types.DashboardResp, error) {
+func (l *DashboardLogic) Dashboard() (*analytics.DashboardData, error) {
 	if l.svcCtx.Analytics == nil {
-		return &types.DashboardResp{}, nil
+		return &analytics.DashboardData{}, nil
 	}
-
-	d, err := l.svcCtx.Analytics.Dashboard()
-	if err != nil {
-		return nil, err
-	}
-
-	return convertDashboard(d), nil
-}
-
-func convertDashboard(d *analytics.DashboardData) *types.DashboardResp {
-	resp := &types.DashboardResp{
-		ChatTotal:   d.ChatTotal,
-		SearchTotal: d.SearchTotal,
-		UploadTotal: d.UploadTotal,
-		ChatAvgMs:   d.ChatAvgMs,
-		SearchAvgMs: d.SearchAvgMs,
-		UploadAvgMs: d.UploadAvgMs,
-		ErrorRate:   d.ErrorRate,
-		P50Ms:       d.P50Ms,
-		P95Ms:       d.P95Ms,
-		P99Ms:       d.P99Ms,
-	}
-
-	for _, hp := range d.Hourly {
-		resp.Hourly = append(resp.Hourly, types.HourlyPoint{
-			Hour:      hp.Hour,
-			ChatCnt:   hp.ChatCnt,
-			SearchCnt: hp.SearchCnt,
-			UploadCnt: hp.UploadCnt,
-			AvgMs:     hp.AvgMs,
-		})
-	}
-	for _, di := range d.Distribution {
-		resp.Distribution = append(resp.Distribution, types.DistItem{
-			EventType: di.EventType,
-			Cnt:       di.Cnt,
-		})
-	}
-	for _, sp := range d.SuccessRate7d {
-		resp.SuccessRate7d = append(resp.SuccessRate7d, types.SuccessRatePoint{
-			Date:       sp.Date,
-			Total:      sp.Total,
-			SuccessCnt: sp.SuccessCnt,
-			Rate:       sp.Rate,
-		})
-	}
-	return resp
+	return l.svcCtx.Analytics.Dashboard()
 }

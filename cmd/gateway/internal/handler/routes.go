@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/yourname/know/cmd/gateway/internal/middleware"
-	"github.com/yourname/know/cmd/gateway/internal/svc"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/middleware"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
 )
@@ -24,11 +24,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/doc/upload",
 				Handler: middleware.WithRateLimit(UploadDocHandler(serverCtx), rds, cfg.Upload.Quota, cfg.Upload.Period),
-			},
-			{
-				Method:  http.MethodGet,
-				Path:    "/ping",
-				Handler: PingHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodPost,
@@ -51,6 +46,28 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodGet,
 				Path:    "/docs/:docId",
 				Handler: DocDetailHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/v1"),
+	)
+
+	// 统计接口（只读，ClickHouse 不可用时降级返回空数据）
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/analytics/overview",
+				Handler: AnalyticsOverviewHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/analytics/trends",
+				Handler: AnalyticsTrendsHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/analytics/slow-queries",
+				Handler: AnalyticsSlowHandler(serverCtx),
 			},
 		},
 		rest.WithPrefix("/api/v1"),

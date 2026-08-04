@@ -3,19 +3,19 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/yourname/know/cmd/consumer/internal/config"
-	"github.com/yourname/know/internal/model"
-	"github.com/yourname/know/pkg/database"
-	"github.com/yourname/know/pkg/redisx"
+	"github.com/chenjianyu070921-lang/KnoX/cmd/consumer/internal/config"
+	"github.com/chenjianyu070921-lang/KnoX/internal/model"
+	"github.com/chenjianyu070921-lang/KnoX/pkg/database"
+	"github.com/chenjianyu070921-lang/KnoX/pkg/redisx"
 
 	"github.com/IBM/sarama"
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 func main() {
@@ -70,8 +70,8 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	fmt.Println("\n收到退出信号，准备优雅关闭消费者...")
+	logx.Infof("收到退出信号，准备优雅关闭消费者...")
 	cancel()
 	time.Sleep(1 * time.Second)
-	fmt.Println("服务正常退出")
+	logx.Infof("服务正常退出")
 }

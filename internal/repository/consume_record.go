@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yourname/know/internal/model"
+	"github.com/chenjianyu070921-lang/KnoX/internal/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

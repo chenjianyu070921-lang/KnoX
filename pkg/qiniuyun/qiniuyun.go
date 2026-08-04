@@ -1,4 +1,4 @@
-package QiniuYun
+package qiniuyun
 
 import (
 	"bytes"
@@ -26,9 +26,9 @@ type Config struct {
 	Domain    string // 外链默认域名（含协议），如 https://xxx.clouddn.com
 }
 
-// QiniuYunUpload 将上传文件推送到七牛云，返回可访问 URL 与文件内容（用于落库）。
+// Upload 将上传文件推送到七牛云，返回可访问 URL 与文件内容（用于落库）。
 // key 为对象名，建议传入 ASCII 安全字符串（如 docID+ext），避免中文/空格导致 URL 打不开。
-func QiniuYunUpload(file multipart.File, header *multipart.FileHeader, cfg Config, key string) (string, string, error) {
+func Upload(file multipart.File, header *multipart.FileHeader, cfg Config, key string) (string, string, error) {
 	mac := credentials.NewCredentials(cfg.AccessKey, cfg.SecretKey)
 
 	// 带超时的 context，避免无网络时无限挂起（原代码用 context.Background 会一直卡到 SDK 默认超时）。

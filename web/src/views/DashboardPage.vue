@@ -227,23 +227,6 @@
         </svg>
       </section>
 
-      <!-- 最近错误 Top -->
-      <section class="dash-panel dash-panel--wide">
-        <div class="dash-panel-head">
-          <h3 class="dash-panel-title">最近错误摘要</h3>
-          <span class="dash-panel-meta">基于过去 24h 日志</span>
-        </div>
-        <div class="dash-err-grid">
-          <div v-for="(e, i) in recentErrors" :key="i" class="dash-err-card">
-            <div class="dash-err-icon">{{ e.icon }}</div>
-            <div class="dash-err-body">
-              <div class="dash-err-type">{{ e.type }}</div>
-              <div class="dash-err-msg">{{ e.msg }}</div>
-            </div>
-            <div class="dash-err-count">{{ e.count }}</div>
-          </div>
-        </div>
-      </section>
     </div>
   </div>
 </template>
@@ -445,19 +428,6 @@ const successArea = computed(() => {
   if (!successDots.value.length) return ''
   const pts = successDots.value
   return `50,200 ${pts.map((d) => `${d.x},${d.y}`).join(' ')} ${pts[pts.length - 1].x},200`
-})
-
-const recentErrors = computed(() => {
-  // 由 mock 数据生成；真实数据接入后可换成接口
-  if (usingMock.value) {
-    return [
-      { icon: '⏱️', type: 'chat.stream.timeout', msg: '流式响应超过 30s 被截断', count: 14 },
-      { icon: '🔌', type: 'milvus.unreachable',  msg: '向量库连接失败，自动降级',  count: 9 },
-      { icon: '📄', type: 'upload.parse.failed',  msg: 'PDF 解析异常 (文件损坏)',   count: 5 },
-      { icon: '🤖', type: 'llm.rate_limit',       msg: '方舟 API 触发限流',          count: 3 },
-    ]
-  }
-  return []
 })
 
 // ============ 工具函数 ============
