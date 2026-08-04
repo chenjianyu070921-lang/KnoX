@@ -1,0 +1,47 @@
+# 配置模板：复制为 doc.yaml 并填真实值，或直接使用环境变量注入密钥。
+Name: doc-api
+Host: 0.0.0.0
+Port: 8080
+Timeout: 120000        # 请求级超时(ms)
+MaxConns: 1000
+MaxBytes: 10485760
+CpuThreshold: 900
+MySQL:
+  DSN: root:root@tcp(127.0.0.1:3306)/knox?charset=utf8mb4&parseTime=True&loc=Local
+Redis:
+  Addr: 127.0.0.1:6379
+Kafka:
+  Brokers:
+    - 127.0.0.1:9092
+  Topic: doc-embedding
+  Group: doc-consumer-group
+Ollama:
+  URL: http://127.0.0.1:11434
+  Model: bge-m3
+Milvus:
+  Addr: 127.0.0.1:19530
+ClickHouse:
+  Addr: 127.0.0.1:9000
+  Database: knox
+  Username: default
+  Password: ""
+Qiniu:
+  AccessKey: "replace-me"
+  SecretKey: "replace-me"
+  Bucket: "knox-example"
+  Region: "z2"
+  Domain: "http://replace-me.clouddn.com"
+ARK:
+  APIKey: "replace-me"
+  ModelID: "ep-replace-me"
+  BaseURL: "https://ark.cn-beijing.volces.com/api/v3"
+RateLimit:
+  Chat:
+    Quota: 10
+    Period: 1
+  Upload:
+    Quota: 5
+    Period: 1
+  Search:
+    Quota: 20
+    Period: 1

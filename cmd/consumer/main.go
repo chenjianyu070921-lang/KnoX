@@ -25,6 +25,11 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
+	// 环境变量优先，避免密钥写进配置文件进 git
+	if v := os.Getenv("KNOX_MYSQL_DSN"); v != "" {
+		c.Mysql.DSN = v
+	}
+
 	// 2. 连接 MySQL + AutoMigrate
 	db := database.GetDB(c.Mysql.DSN)
 	db.AutoMigrate(&model.Document{}, &model.ConsumeRecord{})

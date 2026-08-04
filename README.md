@@ -41,6 +41,27 @@ KnoX 是一个基于 **go-zero** 微服务架构的企业级智能知识库后�
 | 火山方舟 ARK | 对话大模型 API Key 与 Endpoint ID |
 | 七牛云 | AccessKey、SecretKey、Bucket、Region、外链 Domain |
 
+### 3.1 环境变量（密钥）
+
+密钥不写入任何配置文件，启动前通过环境变量注入：
+
+| 环境变量 | 说明 |
+| --- | --- |
+| `KNOX_QINIU_ACCESS_KEY` | 七牛云 AccessKey |
+| `KNOX_QINIU_SECRET_KEY` | 七牛云 SecretKey |
+| `KNOX_ARK_API_KEY` | 火山方舟 API Key |
+| `KNOX_MYSQL_DSN` | MySQL 连接串（可选覆盖） |
+| `KNOX_CLICKHOUSE_PASSWORD` | ClickHouse 密码（可选覆盖） |
+
+变量模板见 `.env.example`。PowerShell 启动前示例：
+
+```powershell
+$env:KNOX_QINIU_ACCESS_KEY="..."
+$env:KNOX_QINIU_SECRET_KEY="..."
+$env:KNOX_ARK_API_KEY="..."
+make run
+```
+
 ## 4. 一键部署命令
 
 启动全部基础设施：

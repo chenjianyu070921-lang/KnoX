@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/yourname/know/cmd/gateway/internal/config"
 	"github.com/yourname/know/cmd/gateway/internal/handler"
@@ -26,6 +27,23 @@ func main() {
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
+
+	// 环境变量优先，避免密钥写进配置文件进 git
+	if v := os.Getenv("KNOX_QINIU_ACCESS_KEY"); v != "" {
+		c.Qiniu.AccessKey = v
+	}
+	if v := os.Getenv("KNOX_QINIU_SECRET_KEY"); v != "" {
+		c.Qiniu.SecretKey = v
+	}
+	if v := os.Getenv("KNOX_ARK_API_KEY"); v != "" {
+		c.ARK.APIKey = v
+	}
+	if v := os.Getenv("KNOX_MYSQL_DSN"); v != "" {
+		c.Mysql.DSN = v
+	}
+	if v := os.Getenv("KNOX_CLICKHOUSE_PASSWORD"); v != "" {
+		c.ClickHouse.Password = v
+	}
 
 	server := rest.MustNewServer(c.RestConf)
 	defer server.Stop()

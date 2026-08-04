@@ -1,0 +1,19 @@
+# 配置模板：复制为 config.yaml 并填真实值，或通过环境变量覆盖。
+mysql:
+  DSN: root:root@tcp(127.0.0.1:3306)/knox?charset=utf8mb4&parseTime=True&loc=Local
+redis:
+  Addr: 127.0.0.1:6379
+kafka:
+  Brokers:
+    - 127.0.0.1:9092
+  Topic: doc-embedding
+  Group: doc-consumer-group
+ollama:
+  URL: http://127.0.0.1:11434
+  Model: bge-m3
+milvus:
+  Addr: 127.0.0.1:19530
+consumer:
+  HandleTimeout: 60s
+  LockTTL: 90s
+  LockMaxRetries: 3
