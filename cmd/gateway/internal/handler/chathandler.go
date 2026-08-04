@@ -11,6 +11,7 @@ import (
 	"github.com/yourname/know/cmd/gateway/internal/logic"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
+	"github.com/yourname/know/internal/errcode"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
@@ -41,7 +42,13 @@ func ChatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 				flusher.Flush()
 			})
 		if err != nil {
-			data, _ := json.Marshal(map[string]string{"error": err.Error()})
+			code := errcode.InternalError
+			msg := errcode.Msg(errcode.InternalError)
+			if bizErr, ok := err.(*errcode.BizError); ok {
+				code = bizErr.Code
+				msg = bizErr.Message
+			}
+			data, _ := json.Marshal(map[string]interface{}{"code": code, "error": msg})
 			fmt.Fprintf(w, "data: %s\n\n", data)
 		} else if resp != nil && resp.SessionId != "" {
 			data, _ := json.Marshal(map[string]string{"sessionId": resp.SessionId})

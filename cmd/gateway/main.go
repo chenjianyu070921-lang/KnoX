@@ -13,6 +13,7 @@ import (
 	"github.com/yourname/know/cmd/gateway/internal/handler"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/internal/errcode"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -67,10 +68,11 @@ func main() {
 				"message": bizErr.Message,
 			}
 		}
-		// 非业务错误，保留原始错误信息
+		// 非业务错误只记日志，不给客户端暴露内部细节
+		logx.Errorf("internal error: %v", err)
 		return http.StatusInternalServerError, map[string]interface{}{
-			"code":    -1,
-			"message": err.Error(),
+			"code":    errcode.InternalError,
+			"message": errcode.Msg(errcode.InternalError),
 		}
 	})
 	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
