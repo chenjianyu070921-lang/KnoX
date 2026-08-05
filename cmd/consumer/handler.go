@@ -7,15 +7,16 @@ import (
 	"log"
 	"time"
 
-	"github.com/IBM/sarama"
-	"github.com/cloudwego/eino-ext/components/indexer/milvus2"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/yourname/know/cmd/consumer/internal/config"
 	"github.com/yourname/know/internal/model"
 	"github.com/yourname/know/internal/repository"
 	"github.com/yourname/know/internal/vector"
 	"github.com/yourname/know/pkg/redisx/distlock"
+
+	"github.com/IBM/sarama"
+	"github.com/cloudwego/eino-ext/components/indexer/milvus2"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -221,7 +222,7 @@ func consumerInsertDocInMilvus(ctx context.Context, db *gorm.DB, redisClient *re
 			log.Println("消费者退出")
 			return
 		default:
-			err := consumer.Consume(ctx, []string{"doc-embedding"}, handler)
+			err := consumer.Consume(ctx, []string{c.Kafka.Topic}, handler)
 			if err != nil && ctx.Err() == nil {
 				log.Printf("Kafka consume error: %v", err)
 				time.Sleep(1 * time.Second)

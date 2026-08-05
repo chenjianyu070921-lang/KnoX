@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yourname/know/internal/model"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -34,7 +35,7 @@ func (r *ConsumeRecordRepository) UpdateStatus(ctx context.Context, topic string
 		updates["retry_count"] = gorm.Expr("retry_count + 1")
 	}
 	return r.db.WithContext(ctx).Model(&model.ConsumeRecord{}).
-		Where("topic = ? AND partition = ? AND offset = ?", topic, partition, offset).
+		Where("`topic` = ? AND `partition` = ? AND `offset` = ?", topic, partition, offset).
 		Updates(updates).Error
 }
 
@@ -42,7 +43,7 @@ func (r *ConsumeRecordRepository) UpdateStatus(ctx context.Context, topic string
 func (r *ConsumeRecordRepository) GetByKey(ctx context.Context, topic string, partition int32, offset int64) (*model.ConsumeRecord, error) {
 	var record model.ConsumeRecord
 	err := r.db.WithContext(ctx).
-		Where("topic = ? AND partition = ? AND offset = ?", topic, partition, offset).
+		Where("`topic` = ? AND `partition` = ? AND `offset` = ?", topic, partition, offset).
 		First(&record).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
@@ -55,7 +56,7 @@ func (r *ConsumeRecordRepository) GetByKey(ctx context.Context, topic string, pa
 func (r *ConsumeRecordRepository) TakeOver(ctx context.Context, topic string, partition int32, offset int64, maxRetries int, staleBefore time.Time) (bool, error) {
 	res := r.db.WithContext(ctx).
 		Model(&model.ConsumeRecord{}).
-		Where("topic = ? AND partition = ? AND offset = ?", topic, partition, offset).
+		Where("`topic` = ? AND `partition` = ? AND `offset` = ?", topic, partition, offset).
 		Where("status = ? OR (status = ? AND updated_at < ?)",
 			model.ConsumeStatusFailed, model.ConsumeStatusProcessing, staleBefore).
 		Where("retry_count < ?", maxRetries).

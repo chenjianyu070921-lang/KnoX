@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -9,11 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/IBM/sarama"
 	"github.com/yourname/know/cmd/consumer/internal/config"
 	"github.com/yourname/know/internal/model"
 	"github.com/yourname/know/pkg/database"
 	"github.com/yourname/know/pkg/redisx"
+
+	"github.com/IBM/sarama"
 	"github.com/zeromicro/go-zero/core/conf"
 )
 
@@ -31,8 +32,10 @@ func main() {
 	}
 
 	// 2. 连接 MySQL + AutoMigrate
-	db := database.GetDB(c.Mysql.DSN)
-	db.AutoMigrate(&model.Document{}, &model.ConsumeRecord{})
+	db := database.MysqlInit(c.Mysql.DSN)
+	if err := db.AutoMigrate(&model.Document{}, &model.ConsumeRecord{}); err != nil {
+		panic("failed to auto migrate: " + err.Error())
+	}
 
 	// 3. 连接 Redis
 	redisClient := redisx.GetClient(c.Redis.Addr)

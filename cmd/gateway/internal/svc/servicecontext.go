@@ -6,12 +6,6 @@ package svc
 import (
 	"context"
 
-	"github.com/IBM/sarama"
-	"github.com/cloudwego/eino-ext/components/model/ark"
-	"github.com/cloudwego/eino/components/tool"
-	"github.com/redis/go-redis/v9"
-	gozeredis "github.com/zeromicro/go-zero/core/stores/redis"
-	arkModel "github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/yourname/know/cmd/gateway/internal/config"
 	"github.com/yourname/know/internal/agent"
 	"github.com/yourname/know/internal/analytics"
@@ -23,15 +17,22 @@ import (
 	"github.com/yourname/know/pkg/database"
 	"github.com/yourname/know/pkg/redisx"
 	"github.com/yourname/know/pkg/redisx/distlock"
+
+	"github.com/IBM/sarama"
+	"github.com/cloudwego/eino-ext/components/model/ark"
+	"github.com/cloudwego/eino/components/tool"
+	"github.com/redis/go-redis/v9"
+	arkModel "github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/zeromicro/go-zero/core/logx"
+	gozeredis "github.com/zeromicro/go-zero/core/stores/redis"
 	"gorm.io/gorm"
 )
 
 type ServiceContext struct {
 	Config        config.Config
 	DB            *gorm.DB
-	Redis         *redis.Client      // go-redis，供 session / distlock / 业务锁
-	GoZeroRedis   *gozeredis.Redis   // go-zero 原生 Redis，供 PeriodLimit 限流
+	Redis         *redis.Client    // go-redis，供 session / distlock / 业务锁
+	GoZeroRedis   *gozeredis.Redis // go-zero 原生 Redis，供 PeriodLimit 限流
 	KafkaProducer sarama.SyncProducer
 	ReActAgent    *agent.ReActAgent
 	ChatModel     *ark.ChatModel
@@ -44,8 +45,10 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	ctx := context.Background()
 	//1.连接mysql
-	db := database.GetDB(c.Mysql.DSN)
-	db.AutoMigrate(&model.Document{})
+	db := database.MysqlInit(c.Mysql.DSN)
+	if err := db.AutoMigrate(&model.Document{}); err != nil {
+		panic("failed to auto migrate: " + err.Error())
+	}
 	//2.连接redis
 	client := redisx.GetClient(c.Redis.Addr)
 	if err := client.Ping(context.Background()).Err(); err != nil {
@@ -95,11 +98,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	chDB := clickhouse.Init(chCfg)
 	if chDB != nil {
 		analyticsClient = analytics.New(chDB)
-		if err := analyticsClient.InitSchema(); err != nil {
+		if err = analyticsClient.InitSchema(); err != nil {
 			logx.Errorf("clickhouse init schema failed: %v", err)
+			analyticsClient = analytics.New(nil) // 建表失败则整体降级，避免每条写入都失败
 		}
 	} else {
-		logx.Error("clickhouse init failed, analytics disabled")
+		logx.Errorf("clickhouse init failed: %v, analytics disabled", clickhouse.Health())
 		analyticsClient = analytics.New(nil) // nil-safe
 	}
 	return &ServiceContext{

@@ -5,12 +5,15 @@ package logic
 
 import (
 	"context"
+	"fmt"
+	"runtime/debug"
 	"time"
 
-	"github.com/cloudwego/eino/schema"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
 	"github.com/yourname/know/internal/breaker"
+
+	"github.com/cloudwego/eino/schema"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -32,7 +35,13 @@ func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
 func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.ChatResp, err error) {
 	start := time.Now()
 	var answer string
+	// defer recover：把 panic 转成 error 而不是 500，并记详细 stack 到日志便于定位
 	defer func() {
+		if r := recover(); r != nil {
+			logx.Errorf("[CHAT_PANIC] question=%s panic=%v\n%s", req.Question, r, debug.Stack())
+			err = fmt.Errorf("chat panic: %v", r)
+		}
+		// 埋点（无论正常/异常都记）
 		l.svcCtx.Analytics.LogChat(
 			time.Since(start).Milliseconds(),
 			err == nil,
@@ -60,6 +69,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.
 		return innerErr
 	})
 	if err != nil {
+		logx.Errorf("[CHAT_ERR] question=%s err=%v", req.Question, err)
 		return nil, err
 	}
 	// 把回答也存进历史

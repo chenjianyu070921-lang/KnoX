@@ -10,6 +10,7 @@ import (
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
 	"github.com/yourname/know/internal/errcode"
+
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

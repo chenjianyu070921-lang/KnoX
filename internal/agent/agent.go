@@ -141,13 +141,26 @@ func (a *ReActAgent) RunWithMessages(ctx context.Context, chatModel interface {
 		stream.Close()
 
 		if len(toolCalls) > 0 {
-			assistantMsg := &schema.Message{Role: schema.Assistant, Content: ""}
+			// Function 是值类型，本不会 nil panic，但 Name="" 会走到 unknown tool 分支更乱，
+			// 这里提前识别零值并跳过，避免无效 toolCall 拖垮整轮 ReAct
+			var validCalls []schema.ToolCall
 			for _, tc := range toolCalls {
+				if tc.Function.Name == "" {
+					continue
+				}
+				validCalls = append(validCalls, tc)
+			}
+			if len(validCalls) == 0 {
+				// 本轮全是空 toolCall，强制当成最终回复以打破死循环
+				return strings.Join(tokens, ""), nil
+			}
+			assistantMsg := &schema.Message{Role: schema.Assistant, Content: ""}
+			for _, tc := range validCalls {
 				assistantMsg.ToolCalls = append(assistantMsg.ToolCalls, tc)
 			}
 			messages = append(messages, assistantMsg)
 
-			for _, tc := range toolCalls {
+			for _, tc := range validCalls {
 				t, ok := a.tools[tc.Function.Name]
 				if !ok {
 					return "", fmt.Errorf("unknown tool: %s", tc.Function.Name)

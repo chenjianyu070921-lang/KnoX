@@ -39,23 +39,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		rest.WithPrefix("/api/v1"),
 	)
 
-	// 统计大盘（只读，不限流）
+	// 文档列表（只读，不限流）
 	server.AddRoutes(
 		[]rest.Route{
 			{
 				Method:  http.MethodGet,
-				Path:    "/analytics/overview",
-				Handler: AnalyticsOverviewHandler(serverCtx),
+				Path:    "/docs",
+				Handler: DocListHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/analytics/trends",
-				Handler: AnalyticsTrendsHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodGet,
-				Path:    "/analytics/slow-queries",
-				Handler: AnalyticsSlowHandler(serverCtx),
+				Path:    "/docs/:docId",
+				Handler: DocDetailHandler(serverCtx),
 			},
 		},
 		rest.WithPrefix("/api/v1"),

@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"context"
 	"time"
 )
 
@@ -138,4 +139,137 @@ func (a *Analytics) SlowQueries(limit int) ([]SlowItem, error) {
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+// ==================== Dashboard 大盘聚合（Reporter 服务） ====================
+
+// HourlyPoint 24h 按小时趋势点
+type HourlyPoint struct {
+	Hour      string  `json:"hour"`
+	ChatCnt   int64   `json:"chatCnt"`
+	SearchCnt int64   `json:"searchCnt"`
+	UploadCnt int64   `json:"uploadCnt"`
+	AvgMs     float64 `json:"avgMs"`
+}
+
+// DistItem 事件类型分布
+type DistItem struct {
+	EventType string `json:"eventType"`
+	Cnt       int64  `json:"cnt"`
+}
+
+// SuccessRatePoint 7天成功率数据点
+type SuccessRatePoint struct {
+	Date       string  `json:"date"`
+	Total      int64   `json:"total"`
+	SuccessCnt int64   `json:"successCnt"`
+	Rate       float64 `json:"rate"`
+}
+
+// DashboardData 大盘聚合数据
+type DashboardData struct {
+	ChatTotal     int64              `json:"chatTotal"`
+	SearchTotal   int64              `json:"searchTotal"`
+	UploadTotal   int64              `json:"uploadTotal"`
+	ChatAvgMs     float64            `json:"chatAvgMs"`
+	SearchAvgMs   float64            `json:"searchAvgMs"`
+	UploadAvgMs   float64            `json:"uploadAvgMs"`
+	ErrorRate     float64            `json:"errorRate"`
+	P50Ms         float64            `json:"p50Ms"`
+	P95Ms         float64            `json:"p95Ms"`
+	P99Ms         float64            `json:"p99Ms"`
+	Hourly        []HourlyPoint      `json:"hourly"`
+	Distribution  []DistItem         `json:"distribution"`
+	SuccessRate7d []SuccessRatePoint `json:"successRate7d"`
+}
+
+// Dashboard 返回前端大盘所需的所有图表数据
+func (a *Analytics) Dashboard() (*DashboardData, error) {
+	if a.db == nil {
+		return &DashboardData{}, nil
+	}
+	ctx := context.Background()
+	d := &DashboardData{}
+
+	// 1. 24h 各类别总量 + 平均延迟
+	rows, err := a.db.QueryContext(ctx,
+		`SELECT event_type, count() AS total, round(avg(duration_ms),2) AS avg_ms
+		 FROM operation_logs WHERE event_time >= now() - INTERVAL 24 HOUR
+		 GROUP BY event_type`)
+	if err == nil {
+		for rows.Next() {
+			var et string
+			var total int64
+			var avgMs float64
+			rows.Scan(&et, &total, &avgMs)
+			switch et {
+			case "chat":
+				d.ChatTotal, d.ChatAvgMs = total, avgMs
+			case "search":
+				d.SearchTotal, d.SearchAvgMs = total, avgMs
+			case "upload":
+				d.UploadTotal, d.UploadAvgMs = total, avgMs
+			}
+		}
+		rows.Close()
+	}
+
+	// 2. 错误率 + 延迟分位数
+	_ = a.db.QueryRowContext(ctx,
+		`SELECT round(countIf(success=0)*100.0/nullIf(count(),0),2),
+		        round(quantile(0.50)(duration_ms),2),
+		        round(quantile(0.95)(duration_ms),2),
+		        round(quantile(0.99)(duration_ms),2)
+		 FROM operation_logs WHERE event_time >= now() - INTERVAL 24 HOUR`,
+	).Scan(&d.ErrorRate, &d.P50Ms, &d.P95Ms, &d.P99Ms)
+
+	// 3. 24h 按小时趋势
+	hr, err := a.db.QueryContext(ctx,
+		`SELECT toString(toStartOfHour(event_time)) AS h,
+		        countIf(event_type='chat') AS chat_cnt,
+		        countIf(event_type='search') AS search_cnt,
+		        countIf(event_type='upload') AS upload_cnt,
+		        round(avg(duration_ms),1) AS avg_ms
+		 FROM operation_logs WHERE event_time >= now() - INTERVAL 24 HOUR
+		 GROUP BY h ORDER BY h`)
+	if err == nil {
+		for hr.Next() {
+			var hp HourlyPoint
+			hr.Scan(&hp.Hour, &hp.ChatCnt, &hp.SearchCnt, &hp.UploadCnt, &hp.AvgMs)
+			d.Hourly = append(d.Hourly, hp)
+		}
+		hr.Close()
+	}
+
+	// 4. 事件类型分布
+	dr, err := a.db.QueryContext(ctx,
+		`SELECT event_type, count() AS cnt
+		 FROM operation_logs WHERE event_time >= now() - INTERVAL 24 HOUR
+		 GROUP BY event_type ORDER BY cnt DESC`)
+	if err == nil {
+		for dr.Next() {
+			var di DistItem
+			dr.Scan(&di.EventType, &di.Cnt)
+			d.Distribution = append(d.Distribution, di)
+		}
+		dr.Close()
+	}
+
+	// 5. 7天成功率趋势
+	sr, err := a.db.QueryContext(ctx,
+		`SELECT toString(toDate(event_time)) AS d, count() AS total,
+		        countIf(success=1) AS ok_cnt,
+		        round(countIf(success=1)*100.0/nullIf(count(),0),2) AS rate
+		 FROM operation_logs WHERE event_time >= now() - INTERVAL 7 DAY
+		 GROUP BY d ORDER BY d`)
+	if err == nil {
+		for sr.Next() {
+			var sp SuccessRatePoint
+			sr.Scan(&sp.Date, &sp.Total, &sp.SuccessCnt, &sp.Rate)
+			d.SuccessRate7d = append(d.SuccessRate7d, sp)
+		}
+		sr.Close()
+	}
+
+	return d, nil
 }

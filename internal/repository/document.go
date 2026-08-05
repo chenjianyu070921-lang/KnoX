@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/yourname/know/internal/model"
+
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -70,5 +72,5 @@ func (r *DocumentRepository) GetByRequestID(ctx context.Context, requestId strin
 
 // GenDocID 生成对外文档 ID
 func GenDocID() string {
-	return "doc_" + time.Now().Format("20060102150405.000")
+	return "doc_" + time.Now().Format("20060102150405.000") + "_" + uuid.NewString()[:8]
 }

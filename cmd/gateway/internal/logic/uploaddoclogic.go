@@ -12,14 +12,15 @@ import (
 	"path"
 	"time"
 
-	"github.com/IBM/sarama"
-	"github.com/google/uuid"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
 	"github.com/yourname/know/internal/errcode"
 	"github.com/yourname/know/internal/model"
 	"github.com/yourname/know/internal/repository"
 	"github.com/yourname/know/pkg/QiniuYun"
+
+	"github.com/IBM/sarama"
+	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/logx"
 	"gorm.io/gorm"
 )
@@ -58,7 +59,7 @@ func (l *UploadDocLogic) UploadDoc(req *types.UploadDocRequest, r *http.Request)
 	}
 	token := uuid.NewString()
 	redisKey := fmt.Sprintf("idem:upload:%s", req.RequestId)
-	lock, err := l.svcCtx.Lock.TryLock(l.ctx, redisKey, token, time.Second*30)
+	lock, err := l.svcCtx.Lock.TryLock(l.ctx, redisKey, token, 5*time.Minute)
 	if err != nil {
 		return nil, errcode.New(errcode.DocUploadFailed, "抢锁失败: "+err.Error())
 	}

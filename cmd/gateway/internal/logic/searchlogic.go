@@ -7,11 +7,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/cloudwego/eino/schema"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
 	"github.com/yourname/know/cmd/gateway/internal/types"
 	"github.com/yourname/know/internal/breaker"
 	"github.com/yourname/know/internal/vector"
+
+	"github.com/cloudwego/eino/schema"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

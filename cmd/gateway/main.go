@@ -12,7 +12,9 @@ import (
 	"github.com/yourname/know/cmd/gateway/internal/config"
 	"github.com/yourname/know/cmd/gateway/internal/handler"
 	"github.com/yourname/know/cmd/gateway/internal/svc"
+
 	"github.com/yourname/know/internal/errcode"
+
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
 

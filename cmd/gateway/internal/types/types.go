@@ -88,3 +88,31 @@ type AnalyticsSlowItem struct {
 type AnalyticsSlowResp struct {
 	Items []AnalyticsSlowItem `json:"items"`
 }
+
+// ---------- 文档列表/详情 ----------
+
+type DocItem struct {
+	DocID     string `json:"docId"`
+	Title     string `json:"title"`
+	DocType   string `json:"docType"`
+	FileUrl   string `json:"fileUrl"`
+	CreatedAt string `json:"createdAt"`
+	Version   int    `json:"version"`
+}
+
+type DocListReq struct {
+	Page int `form:"page,optional"`
+	Size int `form:"size,optional"`
+}
+
+type DocListResp struct {
+	Items    []DocItem `json:"items"`
+	Total    int64     `json:"total"`
+	Page     int       `json:"page"`
+	PageSize int       `json:"pageSize"`
+}
+
+type DocDetailResp struct {
+	DocItem
+	Content string `json:"content"`
+}

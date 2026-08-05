@@ -1,0 +1,10 @@
+Name: reporter
+Host: 0.0.0.0
+Port: 8081
+
+# ClickHouse DSN（与 Gateway 共用同一个 ClickHouse 实例）
+ClickhouseDSN: clickhouse://knox:knox123456@localhost:9000/knox
+
+Log:
+  ServiceName: reporter
+  Mode: console
