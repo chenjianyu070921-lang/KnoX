@@ -25,6 +25,7 @@ func main() {
 	// 1. 加载配置
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
+	c.SetDefaults()
 
 	// 环境变量优先，避免密钥写进配置文件进 git
 	if v := os.Getenv("KNOX_MYSQL_DSN"); v != "" {
@@ -44,7 +45,7 @@ func main() {
 	}
 
 	// 4. 初始化向量索引器
-	InitIndexer()
+	InitIndexer(c)
 
 	// 5. 配置 Kafka 消费者
 	saramaConfig := sarama.NewConfig()

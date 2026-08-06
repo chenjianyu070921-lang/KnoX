@@ -7,11 +7,14 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
 	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
 	"github.com/chenjianyu070921-lang/KnoX/internal/breaker"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
 	"github.com/chenjianyu070921-lang/KnoX/internal/requestid"
 
 	"github.com/cloudwego/eino/schema"
@@ -34,6 +37,10 @@ func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
 }
 
 func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.ChatResp, err error) {
+	if err := validateChatRequest(req); err != nil {
+		return nil, err
+	}
+
 	start := time.Now()
 	var answer string
 	// defer recover：把 panic 转成 error 而不是 500，并记详细 stack 到日志便于定位
@@ -84,4 +91,22 @@ func (l *ChatLogic) Chat(req *types.ChatReq, onToken func(string)) (resp *types.
 		Answer:    answer,
 		SessionId: session.ID,
 	}, nil
+}
+
+const (
+	maxQuestionRunes  = 4000
+	maxSessionIDRunes = 64
+)
+
+func validateChatRequest(req *types.ChatReq) error {
+	if strings.TrimSpace(req.Question) == "" {
+		return errcode.New(errcode.InvalidParam, "question 不能为空")
+	}
+	if utf8.RuneCountInString(req.Question) > maxQuestionRunes {
+		return errcode.New(errcode.InvalidParam, "question 过长")
+	}
+	if utf8.RuneCountInString(req.SessionId) > maxSessionIDRunes {
+		return errcode.New(errcode.InvalidParam, "sessionId 过长")
+	}
+	return nil
 }

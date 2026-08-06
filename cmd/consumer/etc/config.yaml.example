@@ -11,8 +11,12 @@ kafka:
 ollama:
   URL: http://127.0.0.1:11434
   Model: bge-m3
+  Dimension: 1024
 milvus:
   Addr: 127.0.0.1:19530
+  DBName: default
+  Collection: knox_docs
+  VectorField: vector
 consumer:
   HandleTimeout: 60s
   LockTTL: 90s

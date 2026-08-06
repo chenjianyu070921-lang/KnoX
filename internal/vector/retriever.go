@@ -2,6 +2,7 @@ package vector
 
 import (
 	"context"
+	"sync"
 
 	"github.com/cloudwego/eino-ext/components/embedding/ollama"
 	retriever "github.com/cloudwego/eino-ext/components/retriever/milvus2"
@@ -9,23 +10,24 @@ import (
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 )
 
-var retrieverClient *retriever.Retriever
+var (
+	retrieverOnce   sync.Once
+	retrieverClient *retriever.Retriever
+	retrieverErr    error
+)
 
-func RetrieverClient(ctx context.Context, embedding *ollama.Embedder, milvus *milvusclient.Client) *retriever.Retriever {
-	if retrieverClient == nil {
-		var err error
-		retrieverClient, err = retriever.NewRetriever(ctx, &retriever.RetrieverConfig{
+// RetrieverClient 返回按配置初始化的 Milvus 检索器（进程内单例）。
+func RetrieverClient(ctx context.Context, embedding *ollama.Embedder, milvus *milvusclient.Client, collection, vectorField string, topK int) (*retriever.Retriever, error) {
+	retrieverOnce.Do(func() {
+		retrieverClient, retrieverErr = retriever.NewRetriever(ctx, &retriever.RetrieverConfig{
 			Client:       milvus,
-			Collection:   "knox_docs",
-			VectorField:  "vector",
+			Collection:   collection,
+			VectorField:  vectorField,
 			OutputFields: []string{"content", "metadata"},
-			TopK:         5,
+			TopK:         topK,
 			SearchMode:   search_mode.NewApproximate(retriever.COSINE),
 			Embedding:    embedding,
 		})
-		if err != nil {
-			panic(err)
-		}
-	}
-	return retrieverClient
+	})
+	return retrieverClient, retrieverErr
 }

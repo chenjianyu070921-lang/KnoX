@@ -5,11 +5,14 @@ package logic
 
 import (
 	"context"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/svc"
 	"github.com/chenjianyu070921-lang/KnoX/cmd/gateway/internal/types"
 	"github.com/chenjianyu070921-lang/KnoX/internal/breaker"
+	"github.com/chenjianyu070921-lang/KnoX/internal/errcode"
 	"github.com/chenjianyu070921-lang/KnoX/internal/requestid"
 	"github.com/chenjianyu070921-lang/KnoX/internal/vector"
 
@@ -33,12 +36,11 @@ func NewSearchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchLogi
 	}
 }
 
-const (
-	defaultSearchTopK = 5
-	maxSearchTopK     = 20
-)
-
 func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err error) {
+	if err := validateSearchRequest(req); err != nil {
+		return nil, err
+	}
+
 	start := time.Now()
 	var resultCount int
 	defer func() {
@@ -51,18 +53,22 @@ func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err 
 		)
 	}()
 
-	topK := req.TopK
-	if topK <= 0 {
-		topK = defaultSearchTopK
-	}
-	if topK > maxSearchTopK {
-		topK = maxSearchTopK
-	}
+	cfg := l.svcCtx.Config
+	topK := normalizeTopK(req.TopK, cfg.Retrieval.DefaultTopK, cfg.Retrieval.MaxTopK)
 
 	//获取LLM的各大组件
-	embedding := vector.GetEmbeddingClient(l.ctx)
-	milvus := vector.MilvusClient(l.ctx)
-	retrieverClient := vector.RetrieverClient(l.ctx, embedding, milvus)
+	embedding, err := vector.GetEmbeddingClient(l.ctx, cfg.Ollama.URL, cfg.Ollama.Model)
+	if err != nil {
+		return nil, err
+	}
+	milvus, err := vector.GetMilvusClient(l.ctx, cfg.Milvus.Addr, cfg.Milvus.DBName)
+	if err != nil {
+		return nil, err
+	}
+	retrieverClient, err := vector.RetrieverClient(l.ctx, embedding, milvus, cfg.Milvus.Collection, cfg.Milvus.VectorField, cfg.Retrieval.DefaultTopK)
+	if err != nil {
+		return nil, err
+	}
 	//Retriever 返回 []*schema.Document
 	var docs []*schema.Document
 	err = breaker.Do(breaker.Milvus, func() error {
@@ -92,4 +98,29 @@ func buildSearchResults(docs []*schema.Document) []types.SearchResult {
 		})
 	}
 	return results
+}
+
+const maxQueryRunes = 500
+
+func validateSearchRequest(req *types.SearchReq) error {
+	if strings.TrimSpace(req.Query) == "" {
+		return errcode.New(errcode.InvalidParam, "query 不能为空")
+	}
+	if utf8.RuneCountInString(req.Query) > maxQueryRunes {
+		return errcode.New(errcode.InvalidParam, "query 过长")
+	}
+	return nil
+}
+
+func normalizeTopK(requested, defaultTopK, maxTopK int) int {
+	if requested <= 0 {
+		requested = defaultTopK
+	}
+	if maxTopK > 0 && requested > maxTopK {
+		requested = maxTopK
+	}
+	if requested <= 0 {
+		requested = 5
+	}
+	return requested
 }

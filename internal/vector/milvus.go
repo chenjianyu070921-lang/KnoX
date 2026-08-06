@@ -8,28 +8,21 @@ import (
 )
 
 var (
-	newClient *milvusclient.Client
-	Once      sync.Once
+	milvusOnce   sync.Once
+	milvusClient *milvusclient.Client
+	milvusErr    error
 )
 
-// MilvusClient 向量库客户端
-func MilvusClient(ctx context.Context) *milvusclient.Client {
-	var err error
-	Once.Do(func() {
-		newClient, err = milvusclient.New(ctx, &milvusclient.ClientConfig{
-			Address: "127.0.0.1:19530",
-			DBName:  "default",
+// GetMilvusClient 返回按配置初始化的 Milvus 客户端（进程内单例）。
+func GetMilvusClient(ctx context.Context, addr, dbName string) (*milvusclient.Client, error) {
+	milvusOnce.Do(func() {
+		milvusClient, milvusErr = milvusclient.New(ctx, &milvusclient.ClientConfig{
+			Address: addr,
+			DBName:  dbName,
 		})
-		if err != nil {
-			panic(err)
-		}
 	})
-
-	return newClient
-}
-func NewMilvusClient(ctx context.Context) *milvusclient.Client {
-	if newClient == nil {
-		MilvusClient(ctx)
+	if milvusErr != nil {
+		return nil, milvusErr
 	}
-	return newClient
+	return milvusClient, nil
 }

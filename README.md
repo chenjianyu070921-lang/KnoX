@@ -159,11 +159,12 @@ KnoX/
 | `MySQL.DSN` | MySQL 连接串 |
 | `Redis.Addr` | Redis 地址 |
 | `Kafka.Brokers / Topic` | Kafka 地址与上传消息 Topic |
-| `Ollama.URL / Model` | Embedding 服务地址与模型 |
-| `Milvus.Addr` | Milvus 地址 |
+| `Ollama.URL / Model / Dimension` | Embedding 服务地址、模型与向量维度 |
+| `Milvus.Addr / DBName / Collection / VectorField` | Milvus 地址、库名、集合名与向量字段 |
 | `Qiniu.*` | 七牛云 AccessKey / SecretKey / Bucket / Region / Domain |
 | `ARK.APIKey / ModelID / BaseURL` | 火山方舟对话模型配置 |
 | `RateLimit.Chat / Upload / Search` | 各接口每秒配额（`Quota` / `Period`） |
+| `Retrieval.DefaultTopK / MaxTopK` | 检索默认返回条数与单次上限 |
 | `ClickHouse.*` | ClickHouse 地址、库名、账号密码 |
 
 ### 消费者配置 `cmd/consumer/etc/config.yaml`
@@ -173,8 +174,8 @@ KnoX/
 | `MySQL.DSN` | MySQL 连接串 |
 | `Redis.Addr` | Redis 地址 |
 | `Kafka.Brokers / Topic / Group` | Kafka 消费配置 |
-| `Ollama.URL / Model` | Embedding 服务配置 |
-| `Milvus.Addr` | Milvus 地址 |
+| `Ollama.URL / Model / Dimension` | Embedding 服务地址、模型与向量维度 |
+| `Milvus.Addr / DBName / Collection / VectorField` | Milvus 地址、库名、集合名与向量字段 |
 | `Consumer.HandleTimeout` | 单条消息处理超时，默认 60s |
 | `Consumer.LockTTL` | 文档索引锁 TTL，默认 90s，需大于 HandleTimeout |
 | `Consumer.LockMaxRetries` | 失败最大重试次数，默认 3，达到后停止重投 |

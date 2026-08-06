@@ -18,8 +18,12 @@ Kafka:
 Ollama:
   URL: http://127.0.0.1:11434
   Model: bge-m3
+  Dimension: 1024
 Milvus:
   Addr: 127.0.0.1:19530
+  DBName: default
+  Collection: knox_docs
+  VectorField: vector
 ClickHouse:
   Addr: 127.0.0.1:9000
   Database: knox
@@ -45,3 +49,6 @@ RateLimit:
   Search:
     Quota: 20
     Period: 1
+Retrieval:
+  DefaultTopK: 5
+  MaxTopK: 20

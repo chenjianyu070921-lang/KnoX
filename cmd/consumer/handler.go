@@ -22,11 +22,21 @@ import (
 
 var docIndexer *milvus2.Indexer
 
-func InitIndexer() {
+func InitIndexer(c config.Config) {
 	ctx := context.Background()
-	embedder := vector.GetEmbeddingClient(ctx)
-	client := vector.NewMilvusClient(ctx)
-	docIndexer = vector.GetIndexerClient(ctx, client, embedder)
+	embedder, err := vector.GetEmbeddingClient(ctx, c.Ollama.URL, c.Ollama.Model)
+	if err != nil {
+		panic("failed to create embedding client: " + err.Error())
+	}
+	client, err := vector.GetMilvusClient(ctx, c.Milvus.Addr, c.Milvus.DBName)
+	if err != nil {
+		panic("failed to create milvus client: " + err.Error())
+	}
+	indexer, err := vector.GetIndexerClient(ctx, client, embedder, c.Milvus.Collection, c.Milvus.VectorField, c.Ollama.Dimension)
+	if err != nil {
+		panic("failed to create indexer: " + err.Error())
+	}
+	docIndexer = indexer
 }
 
 type embedTask struct {

@@ -59,10 +59,7 @@ func (l *AnalyticsLogic) Trends(req *types.AnalyticsTrendsReq) (*types.Analytics
 	if l.svcCtx.Analytics == nil {
 		return &types.AnalyticsTrendsResp{Points: []types.AnalyticsTrendPoint{}}, nil
 	}
-	days := req.Days
-	if days <= 0 {
-		days = 7
-	}
+	days := normalizeAnalyticsDays(req.Days)
 	points, err := l.svcCtx.Analytics.Trends(days)
 	if err != nil {
 		logx.Errorf("analytics trends query failed: %v", err)
@@ -85,10 +82,7 @@ func (l *AnalyticsLogic) SlowQueries(req *types.AnalyticsSlowReq) (*types.Analyt
 	if l.svcCtx.Analytics == nil {
 		return &types.AnalyticsSlowResp{Items: []types.AnalyticsSlowItem{}}, nil
 	}
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 20
-	}
+	limit := normalizeSlowQueryLimit(req.Limit)
 	items, err := l.svcCtx.Analytics.SlowQueries(limit)
 	if err != nil {
 		logx.Errorf("analytics slow queries failed: %v", err)
@@ -106,4 +100,29 @@ func (l *AnalyticsLogic) SlowQueries(req *types.AnalyticsSlowReq) (*types.Analyt
 		})
 	}
 	return resp, nil
+}
+
+const (
+	maxAnalyticsDays  = 90
+	maxSlowQueryLimit = 100
+)
+
+func normalizeAnalyticsDays(days int) int {
+	if days <= 0 {
+		days = 7
+	}
+	if days > maxAnalyticsDays {
+		days = maxAnalyticsDays
+	}
+	return days
+}
+
+func normalizeSlowQueryLimit(limit int) int {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > maxSlowQueryLimit {
+		limit = maxSlowQueryLimit
+	}
+	return limit
 }

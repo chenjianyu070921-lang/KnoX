@@ -19,6 +19,17 @@ type Config struct {
 	Redis struct {
 		Addr string `json:"addr"`
 	} `json:"redis"`
+	Ollama struct {
+		URL       string `json:"url"`
+		Model     string `json:"model"`
+		Dimension int    `json:"dimension"`
+	} `json:"ollama"`
+	Milvus struct {
+		Addr        string `json:"addr"`
+		DBName      string `json:"dbName"`
+		Collection  string `json:"collection"`
+		VectorField string `json:"vectorField"`
+	} `json:"milvus"`
 	Kafka struct {
 		Brokers []string `json:"brokers"`
 		Topic   string   `json:"topic"`
@@ -46,4 +57,39 @@ type Config struct {
 		Username string `json:"username"` // 默认 default
 		Password string `json:"password"` // 默认空
 	} `json:"clickhouse"`
+	Retrieval struct {
+		DefaultTopK int `json:"defaultTopK"`
+		MaxTopK     int `json:"maxTopK"`
+	} `json:"retrieval"`
+}
+
+// SetDefaults 填充 Ollama/Milvus/Retrieval 的缺省值，避免配置缺省时启动失败。
+func (c *Config) SetDefaults() {
+	if c.Ollama.URL == "" {
+		c.Ollama.URL = "http://localhost:11434"
+	}
+	if c.Ollama.Model == "" {
+		c.Ollama.Model = "bge-m3"
+	}
+	if c.Ollama.Dimension <= 0 {
+		c.Ollama.Dimension = 1024
+	}
+	if c.Milvus.Addr == "" {
+		c.Milvus.Addr = "127.0.0.1:19530"
+	}
+	if c.Milvus.DBName == "" {
+		c.Milvus.DBName = "default"
+	}
+	if c.Milvus.Collection == "" {
+		c.Milvus.Collection = "knox_docs"
+	}
+	if c.Milvus.VectorField == "" {
+		c.Milvus.VectorField = "vector"
+	}
+	if c.Retrieval.DefaultTopK <= 0 {
+		c.Retrieval.DefaultTopK = 5
+	}
+	if c.Retrieval.MaxTopK <= 0 {
+		c.Retrieval.MaxTopK = 20
+	}
 }

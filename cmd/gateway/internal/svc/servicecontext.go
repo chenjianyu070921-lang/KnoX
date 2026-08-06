@@ -44,6 +44,7 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	ctx := context.Background()
+	c.SetDefaults()
 	//1.连接mysql
 	db := database.MysqlInit(c.Mysql.DSN)
 	if err := db.AutoMigrate(&model.Document{}); err != nil {
@@ -79,9 +80,18 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic("failed to create chat model: " + err.Error())
 	}
 	//5.初始化agent
-	milvusClient := vector.NewMilvusClient(ctx)
-	emb := vector.GetEmbeddingClient(ctx)
-	retrieverClient := vector.RetrieverClient(ctx, emb, milvusClient)
+	milvusClient, err := vector.GetMilvusClient(ctx, c.Milvus.Addr, c.Milvus.DBName)
+	if err != nil {
+		panic("failed to create milvus client: " + err.Error())
+	}
+	emb, err := vector.GetEmbeddingClient(ctx, c.Ollama.URL, c.Ollama.Model)
+	if err != nil {
+		panic("failed to create embedding client: " + err.Error())
+	}
+	retrieverClient, err := vector.RetrieverClient(ctx, emb, milvusClient, c.Milvus.Collection, c.Milvus.VectorField, c.Retrieval.DefaultTopK)
+	if err != nil {
+		panic("failed to create retriever: " + err.Error())
+	}
 	t := agent.NewTools(retrieverClient)
 	tools := []tool.InvokableTool{t.SearchTool()}
 	reactAgent := agent.NewReActAgent(tools)

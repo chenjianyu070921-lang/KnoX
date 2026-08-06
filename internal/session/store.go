@@ -1,9 +1,10 @@
-﻿package session
+package session
 
 import (
 	"context"
 	"encoding/json"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
@@ -21,6 +22,11 @@ type Store struct {
 	ttl time.Duration
 }
 
+const (
+	maxHistoryMessages = 20
+	maxHistoryTokens   = 12000
+)
+
 func NewStore(rdb *redis.Client) *Store {
 	return &Store{
 		rdb: rdb,
@@ -36,6 +42,7 @@ func (s *Store) GetOrCreate(id string) *Session {
 		if err == nil {
 			var session Session
 			if json.Unmarshal(data, &session) == nil {
+				session.Messages = trimHistory(session.Messages)
 				return &session
 			}
 		}
@@ -55,6 +62,24 @@ func (s *Store) Save(session *Session) {
 }
 
 func (s *Store) save(session *Session) {
+	session.Messages = trimHistory(session.Messages)
 	data, _ := json.Marshal(session)
 	s.rdb.Set(context.Background(), "session:"+session.ID, data, s.ttl)
+}
+
+// trimHistory 限制历史条数与 token 预算（按字符数近似），始终保留最新消息。
+func trimHistory(messages []*schema.Message) []*schema.Message {
+	if len(messages) > maxHistoryMessages {
+		messages = messages[len(messages)-maxHistoryMessages:]
+	}
+	total := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		tokens := utf8.RuneCountInString(messages[i].Content)
+		if total > 0 && total+tokens > maxHistoryTokens {
+			messages = messages[i+1:]
+			break
+		}
+		total += tokens
+	}
+	return messages
 }

@@ -2,28 +2,29 @@ package vector
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/eino-ext/components/embedding/ollama"
 )
 
-var embedder *ollama.Embedder
+var (
+	embedderOnce sync.Once
+	embedder     *ollama.Embedder
+	embedderErr  error
+)
 
-func EmbeddingClient(ctx context.Context) *ollama.Embedder {
-	var err error
-	embedder, err = ollama.NewEmbedder(ctx, &ollama.EmbeddingConfig{
-		BaseURL: "http://localhost:11434",
-		Model:   "bge-m3",
-		Timeout: 10 * time.Second,
+// GetEmbeddingClient 返回按配置初始化的 Embedding 客户端（进程内单例）。
+func GetEmbeddingClient(ctx context.Context, baseURL, model string) (*ollama.Embedder, error) {
+	embedderOnce.Do(func() {
+		embedder, embedderErr = ollama.NewEmbedder(ctx, &ollama.EmbeddingConfig{
+			BaseURL: baseURL,
+			Model:   model,
+			Timeout: 10 * time.Second,
+		})
 	})
-	if err != nil {
-		panic(err)
+	if embedderErr != nil {
+		return nil, embedderErr
 	}
-	return embedder
-}
-func GetEmbeddingClient(ctx context.Context) *ollama.Embedder {
-	if embedder == nil {
-		EmbeddingClient(ctx)
-	}
-	return embedder
+	return embedder, nil
 }
